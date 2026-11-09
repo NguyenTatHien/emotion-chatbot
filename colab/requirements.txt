@@ -1,0 +1,6 @@
+# Phụ thuộc của model server (không gồm thư viện ML: cài thêm backend/requirements-ml.txt).
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+python-multipart>=0.0.9

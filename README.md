@@ -6,7 +6,7 @@ Chatbot tiếng Việt nhận tin nhắn văn bản hoặc giọng nói, nhận 
 
 ## Trạng thái
 
-Khung backend (FastAPI) và giao diện chat (React) đã chạy được hoàn toàn bằng mock. Voice, tích hợp mô hình thật và Docker sẽ được thêm theo kế hoạch 5 ngày.
+Khung backend (FastAPI), giao diện chat (React), nhập giọng nói, chế độ `remote` gọi model server trên Colab, chuỗi dự phòng LLM (Qwen → Gemini → câu soạn sẵn) và nút đánh giá đã chạy được; toàn bộ vẫn chạy được bằng mock. Docker sẽ được thêm theo kế hoạch 5 ngày.
 
 ## Luồng xử lý một lượt chat
 
@@ -40,7 +40,7 @@ emotion-chatbot/
 ├── backend/            # FastAPI, pipeline, registry, mocks
 │   └── modules/        # mỗi file = một hợp đồng hàm, do từng thành viên viết ruột
 ├── frontend/           # React + shadcn/ui
-├── colab/              # notebook model server
+├── colab/              # khung model server (FastAPI) + hướng dẫn chạy trên Colab
 ├── notebooks/          # đánh giá E1–E4
 └── docker-compose.yml
 ```
@@ -89,7 +89,9 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 | Route | Mô tả |
 |---|---|
 | `POST /api/chat` | Form: `session_id` (bắt buộc), `message`, `audio_file`, `transcript_hint`, `goal` (`xoa_diu`, `nang_mood`, `tap_trung`, `giai_toa`) |
-| `GET /api/health` | `{ok, model_server}` |
+| `GET /api/health` | `{ok, model_server}`; `model_server` là `up`/`down` (gọi thật `GET {MODEL_SERVER_URL}/health`, timeout 3 s, cache 10 s) hoặc `n/a` khi không có module remote |
+| `POST /api/feedback` | JSON `{session_id, turn_id, rating}` (`up`/`down`); 404 nếu lượt không có trong phiên |
+| `GET /api/feedback/export` | CSV đánh giá mới nhất theo `turn_id`; cần `Authorization: Bearer <ADMIN_TOKEN>` |
 | `GET /api/meta` | Nhãn cảm xúc, goal, mode từng module |
 | `GET /api/session/{session_id}` | Lịch sử các lượt của phiên |
 
@@ -103,6 +105,10 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 | `HISTORY_TURNS` | `6` | Số lượt gần nhất truyền cho LLM |
 | `MOCK_LATENCY_MS` | `0` | Giả độ trễ cho mock |
 | `SAFETY_HOTLINE_TEXT` | trống | Dòng hỗ trợ thêm vào thông điệp an toàn |
+| `MODEL_SERVER_URL`, `MODEL_SERVER_TOKEN` | trống | URL và bí mật dùng chung của model server (bắt buộc URL khi có module remote) |
+| `REMOTE_TIMEOUT_EMOTION/TRANSCRIBE/PROSODY/GENERATE` | `10/20/10/30` | Timeout (giây) từng lời gọi tới model server |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | trống, `gemini-3.6-flash` | Dự phòng Gemini; trống khoá = bỏ bước này |
+| `FEEDBACK_PATH`, `ADMIN_TOKEN` | `data/feedback.jsonl`, trống | File đánh giá; trống `ADMIN_TOKEN` = route export trả 404 |
 
 | `MAX_AUDIO_SECONDS`, `MAX_AUDIO_MB` | `30`, `5` | Giới hạn bản ghi; vượt thì trả HTTP 413 |
 | `FFMPEG_BINARY` | `ffmpeg` | Tên hoặc đường dẫn ffmpeg dùng để chuẩn hoá audio |
@@ -112,6 +118,26 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 - **Cần ffmpeg** khi chạy backend không dùng Docker: backend chuẩn hoá mọi định dạng trình duyệt gửi (webm/opus, ogg, mp4/aac, wav) sang WAV 16 kHz mono trước khi gọi `speech.py`. Cài ffmpeg (`winget install ffmpeg`, `brew install ffmpeg` hoặc `apt install ffmpeg`) rồi đảm bảo có trên `PATH`, hoặc đặt `FFMPEG_BINARY`. Nếu không thấy, backend thử gói `imageio-ffmpeg` (chỉ có trong `requirements-dev.txt`, dùng cho test/dev); vẫn không có thì bước speech được coi là lỗi và hệ thống dùng chữ nhận dạng sẵn từ trình duyệt (`transcript_hint`), không trả 500. Image Docker (change sau) phải cài ffmpeg bằng apt.
 - Mã lỗi: `413` khi file quá `MAX_AUDIO_MB` hoặc dài hơn `MAX_AUDIO_SECONDS` + 1 giây, `415` khi ffmpeg không giải mã được, `400` khi không nhận dạng được chữ nào và không có `message`/`transcript_hint`.
 - Test tự sinh audio mẫu bằng ffmpeg, không commit file nhị phân.
+
+### Mode remote (model server trên Colab)
+
+Đặt `EMOTION_MODE`, `SPEECH_MODE`, `LLM_MODE` thành `remote` cùng `MODEL_SERVER_URL` (và `MODEL_SERVER_TOKEN` nếu server đặt token). Backend gọi `POST /emotion`, `/transcribe`, `/prosody`, `/generate` bằng httpx async, gửi header `X-Model-Server-Token`. Timeout, lỗi kết nối, HTTP lỗi hoặc phản hồi sai schema đều được coi là module lỗi: `POST /api/chat` vẫn trả 200 với `meta.degraded=true`. `SAFETY_MODE=remote` và `MUSIC_MODE=remote` bị từ chối khi khởi động (hai module này luôn chạy trong backend), cũng như khi thiếu `MODEL_SERVER_URL`. Khung server và hướng dẫn Colab/ngrok: [colab/README.md](colab/README.md).
+
+### Chuỗi dự phòng LLM
+
+Thứ tự: implementation `llm` theo mode → Gemini (nếu có `GEMINI_API_KEY`) → câu soạn sẵn theo nhãn. `meta.llm_backend` là nguồn thực sự đã trả lời: `mock`, `qwen`, `gemini` hoặc `canned`; mỗi bước hỏng thêm một cảnh báo vào `meta.warnings` và đặt `degraded=true`. Gemini được gọi qua REST `generateContent` (không dùng SDK), khoá chỉ nằm trong header `x-goog-api-key` và không bao giờ xuất hiện trong log hay phản hồi.
+
+Model mặc định `gemini-3.6-flash` là model "Stable" dòng Flash trong danh sách model của Google AI tại <https://ai.google.dev/gemini-api/docs/models> (trang chuyển hướng tới <https://aistudio.google.com/docs/models>), kiểm tra ngày 10/11/2026. Muốn đổi model chỉ cần sửa `GEMINI_MODEL`; lỗi tên model chỉ làm rơi xuống câu soạn sẵn.
+
+### Đánh giá của người dùng thử (cho Người 5)
+
+Dưới mỗi câu trả lời của bot (trừ lượt an toàn) có nút "Hữu ích"/"Chưa hợp". Mỗi lần bấm ghi thêm một dòng JSONL vào `FEEDBACK_PATH` gồm `session_id, turn_id, rating, emotion_label, arousal, goal, safety, llm_backend, created_at` — **không lưu nội dung tin nhắn hay câu trả lời**. Đổi đánh giá cho cùng lượt thì dòng mới thắng. Xuất CSV (mới nhất theo `turn_id`):
+
+```bash
+curl -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:8000/api/feedback/export -o feedback.csv
+```
+
+Cần đặt `ADMIN_TOKEN` trong `.env`; để trống thì route trả 404. File dữ liệu được `.gitignore` bỏ qua; khi triển khai Docker hãy mount volume cho thư mục chứa nó.
 
 Danh sách đầy đủ kèm chú thích: `backend/.env.example`. Hướng dẫn cắm module thật: [CONTRIBUTING.md](CONTRIBUTING.md).
 
