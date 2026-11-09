@@ -1,0 +1,35 @@
+# Chạy local: docker compose up --build  ->  http://localhost:8080
+name: emotion-chatbot
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: base
+    env_file:
+      - path: ./backend/.env
+        required: false
+    networks: [internal]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web:
+    build:
+      context: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [internal]
+
+networks:
+  internal:

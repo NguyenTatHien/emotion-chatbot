@@ -1,0 +1,57 @@
+# Chạy dev có hot reload: docker compose -f docker-compose.dev.yml up --build
+#   Giao diện: http://localhost:5173   |   API trực tiếp: http://localhost:8000
+name: emotion-chatbot-dev
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: base
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "1"
+      - --reload
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      # Bind mount từ Windows không phát sự kiện file nên cần polling.
+      WATCHFILES_FORCE_POLLING: "true"
+      CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    networks: [internal]
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command:
+      - sh
+      - -c
+      - corepack enable && corepack prepare pnpm@11.17.0 --activate && pnpm install --frozen-lockfile && pnpm dev --host
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      VITE_API_PROXY: "http://backend:8000"
+    volumes:
+      - ./frontend:/app
+      # Giữ node_modules trong container, không ghi đè bằng thư mục trên máy.
+      - frontend-node-modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks: [internal]
+
+networks:
+  internal:
+
+volumes:
+  frontend-node-modules:
