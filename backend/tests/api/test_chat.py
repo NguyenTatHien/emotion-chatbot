@@ -55,11 +55,11 @@ def test_message_too_long_returns_400(client):
     assert post(client, session_id="s1", message="a" * 1000).status_code == 200
 
 
-def test_audio_only_uses_speech_module(client):
+def test_audio_only_uses_speech_module(client, audio_samples):
     r = client.post(
         "/api/chat",
         data={"session_id": "s1"},
-        files={"audio_file": ("a.wav", b"RIFF0000WAVE", "audio/wav")},
+        files={"audio_file": ("voice.webm", audio_samples["webm"], "audio/webm")},
     )
     assert r.status_code == 200
     body = r.json()
@@ -68,14 +68,14 @@ def test_audio_only_uses_speech_module(client):
     assert body["emotion"]["label"] == "Sadness"
 
 
-def test_audio_too_large_returns_400(client, set_env):
+def test_audio_too_large_returns_413(client, set_env):
     set_env(MAX_AUDIO_MB=1)
     r = client.post(
         "/api/chat",
         data={"session_id": "s1"},
         files={"audio_file": ("a.wav", b"0" * (1024 * 1024 + 10), "audio/wav")},
     )
-    assert r.status_code == 400
+    assert r.status_code == 413
 
 
 def test_message_has_priority_over_transcript_hint(client):

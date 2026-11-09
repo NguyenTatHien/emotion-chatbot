@@ -18,6 +18,10 @@ from app.session import store
 logger = logging.getLogger("emotion_chatbot.pipeline")
 
 
+class NoUsableInput(Exception):
+    """Không có chữ nào để xử lý (audio không nhận dạng được, không có message/hint)."""
+
+
 async def try_call(
     name: str, fn: Callable, *args, timeout: float, **kwargs
 ) -> tuple[object | None, str | None]:
@@ -67,31 +71,56 @@ async def handle_chat(
     transcript_hint: str | None = None,
     audio_path: str | None = None,
     transcript: str | None = None,
+    speech_warning: str | None = None,
 ) -> ChatResponse:
     settings = get_settings()
     started = time.perf_counter()
     warnings: list[str] = []
     arousal: str | None = None
+    w1: str | None = None
 
     # Bước 0: nếu có audio thì chạy speech (transcribe || prosody) qua registry.
+    heard: str | None = None
     if audio_path:
-        timeout = settings.module_timeout("speech")
-        (heard, w1), (prosody, w2) = await asyncio.gather(
-            try_call("speech", registry.get("speech", "transcribe"), audio_path, timeout=timeout),
+        (heard_raw, w1), (prosody, w2) = await asyncio.gather(
             try_call(
-                "speech", registry.get("speech", "extract_prosody"), audio_path, timeout=timeout
+                "speech.transcribe",
+                registry.get("speech", "transcribe"),
+                audio_path,
+                timeout=settings.module_timeout("speech"),
+            ),
+            try_call(
+                "speech.prosody",
+                registry.get("speech", "extract_prosody"),
+                audio_path,
+                timeout=settings.PROSODY_TIMEOUT,
             ),
         )
         warnings.extend(w for w in (w1, w2) if w)
-        if isinstance(heard, str) and heard.strip():
-            transcript = heard.strip()
+        if isinstance(heard_raw, str) and heard_raw.strip():
+            heard = heard_raw.strip()
         if isinstance(prosody, dict) and prosody.get("arousal") in AROUSAL_LEVELS:
             arousal = prosody["arousal"]
+    if speech_warning:
+        warnings.append(speech_warning)
+
+    hint = (transcript_hint or "").strip() or None
+    if heard:
+        transcript = heard
+    elif (audio_path or speech_warning) and hint:
+        # Có audio nhưng PhoWhisper lỗi/rỗng: dùng chữ nhận dạng sẵn từ trình duyệt.
+        transcript = hint
+        if not w1 and not speech_warning:
+            warnings.append("speech: không nhận dạng được, dùng transcript_hint")
 
     # Bước 1: văn bản đầu vào theo ưu tiên message > transcript > transcript_hint.
     text = next(
         (t.strip() for t in (message, transcript, transcript_hint) if t and t.strip()), ""
     )
+    if not text:
+        raise NoUsableInput(
+            "Mình chưa nghe rõ bạn nói gì. Bạn thử ghi âm lại hoặc gõ chữ giúp mình nhé."
+        )
 
     # Bước 2: an toàn chạy trước, fail-closed.
     risk = False
@@ -114,11 +143,6 @@ async def handle_chat(
 
     if risk:
         reply = (safety_msg or "").strip() or fallbacks.safety_message()
-    elif not text:
-        # Có audio nhưng không nghe được gì: không đoán cảm xúc.
-        emotion_dict = fallbacks.fallback_emotion()
-        reply = "Mình chưa nghe rõ bạn nói gì. Bạn có thể nói lại hoặc gõ chữ giúp mình không?"
-        warnings.append("speech: không có nội dung để xử lý")
     else:
         # Bước 3: cảm xúc.
         result, warn = await try_call(

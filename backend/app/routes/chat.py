@@ -1,16 +1,18 @@
 """POST /api/chat."""
 
-import os
+import logging
+import re
 import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile
 
-from app import pipeline
+from app import audio, pipeline
 from app.config import get_settings
 from app.constants import GOALS, MAX_MESSAGE_CHARS
 from app.schemas import ChatResponse
 
+logger = logging.getLogger("emotion_chatbot.chat")
 router = APIRouter()
 
 
@@ -40,13 +42,15 @@ async def chat(
         raise _bad_request(f"goal không hợp lệ; chỉ chấp nhận: {', '.join(GOALS)}.")
 
     audio_bytes = b""
-    suffix = ".wav"
+    suffix = ".bin"
     if audio_file is not None:
-        limit = settings.MAX_AUDIO_MB * 1024 * 1024
-        audio_bytes = await audio_file.read(limit + 1)
-        if len(audio_bytes) > limit:
-            raise _bad_request(f"File âm thanh quá lớn (tối đa {settings.MAX_AUDIO_MB} MB).")
-        suffix = Path(audio_file.filename or "").suffix.lower() or ".wav"
+        try:
+            audio_bytes = await audio.read_limited(audio_file, settings.MAX_AUDIO_MB)
+        except audio.AudioError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.message) from None
+        raw_suffix = Path(audio_file.filename or "").suffix.lower()
+        if re.fullmatch(r"\.[a-z0-9]{1,5}", raw_suffix):
+            suffix = raw_suffix
 
     has_text = any(t and t.strip() for t in (message, transcript_hint))
     if not has_text and not audio_bytes:
@@ -54,19 +58,34 @@ async def chat(
             "Cần ít nhất một trong các trường: message, audio_file hoặc transcript_hint."
         )
 
-    audio_path: str | None = None
+    raw_dir: tempfile.TemporaryDirectory | None = None
+    normalized: audio.NormalizedAudio | None = None
+    speech_warning: str | None = None
     try:
         if audio_bytes:
-            fd, audio_path = tempfile.mkstemp(suffix=suffix, prefix="chat_audio_")
-            with os.fdopen(fd, "wb") as f:
-                f.write(audio_bytes)
-        return await pipeline.handle_chat(
-            session_id=session_id,
-            message=message,
-            goal=goal,
-            transcript_hint=transcript_hint,
-            audio_path=audio_path,
-        )
+            raw_dir = tempfile.TemporaryDirectory(prefix="chat_audio_")
+            raw_path = Path(raw_dir.name) / f"upload{suffix}"
+            raw_path.write_bytes(audio_bytes)
+            try:
+                normalized = await audio.normalize(str(raw_path))
+            except audio.AudioToolMissing as exc:
+                logger.warning("Không có ffmpeg, bỏ qua bước speech: %s", exc.message)
+                speech_warning = "speech: chưa có ffmpeg trên máy chủ, dùng dự phòng"
+            except audio.AudioError as exc:
+                raise HTTPException(status_code=exc.status_code, detail=exc.message) from None
+        try:
+            return await pipeline.handle_chat(
+                session_id=session_id,
+                message=message,
+                goal=goal,
+                transcript_hint=transcript_hint,
+                audio_path=normalized.wav_path if normalized else None,
+                speech_warning=speech_warning,
+            )
+        except pipeline.NoUsableInput as exc:
+            raise _bad_request(str(exc)) from None
     finally:
-        if audio_path and os.path.exists(audio_path):
-            os.remove(audio_path)
+        if normalized:
+            normalized.close()
+        if raw_dir:
+            raw_dir.cleanup()

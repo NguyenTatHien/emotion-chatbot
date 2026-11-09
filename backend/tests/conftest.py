@@ -1,3 +1,5 @@
+import subprocess
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -18,6 +20,10 @@ _ENV_KEYS = [
     "SAFETY_TIMEOUT",
     "MUSIC_TIMEOUT",
     "MAX_AUDIO_MB",
+    "MAX_AUDIO_SECONDS",
+    "FFMPEG_BINARY",
+    "SPEECH_TIMEOUT",
+    "PROSODY_TIMEOUT",
     *[f"{n.upper()}_MODE" for n in MODULE_NAMES],
 ]
 
@@ -53,3 +59,33 @@ def set_env(monkeypatch):
 def client():
     with TestClient(app) as c:
         yield c
+
+
+def _make_audio(ffmpeg: str, out, seconds: float, *codec_args: str) -> bytes:
+    subprocess.run(
+        [
+            ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+            "-f", "lavfi", "-i", f"sine=frequency=220:duration={seconds}:sample_rate=48000",
+            *codec_args, str(out),
+        ],
+        check=True,
+        timeout=60,
+    )  # fmt: skip
+    return out.read_bytes()
+
+
+@pytest.fixture(scope="session")
+def audio_samples(tmp_path_factory) -> dict[str, bytes]:
+    """Audio mẫu sinh bằng chính ffmpeg mà backend dùng (không commit file nhị phân)."""
+    from app.audio import resolve_ffmpeg
+
+    ffmpeg = resolve_ffmpeg()
+    d = tmp_path_factory.mktemp("audio")
+    return {
+        "webm": _make_audio(ffmpeg, d / "s.webm", 5, "-c:a", "libopus"),
+        "ogg": _make_audio(ffmpeg, d / "s.ogg", 3, "-c:a", "libopus"),
+        "m4a": _make_audio(ffmpeg, d / "s.m4a", 3, "-c:a", "aac"),
+        "wav": _make_audio(ffmpeg, d / "s.wav", 2, "-ac", "2", "-c:a", "pcm_s16le"),
+        "long_wav": _make_audio(ffmpeg, d / "long.wav", 45, "-ac", "1", "-ar", "16000"),
+        "text": "đây không phải audio\n".encode() * 50,
+    }

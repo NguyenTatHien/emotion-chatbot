@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     MAX_AUDIO_SECONDS: int = 30
     MAX_AUDIO_MB: int = 5
+    FFMPEG_BINARY: str = "ffmpeg"
     HISTORY_TURNS: int = 6
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
 
@@ -34,7 +35,8 @@ class Settings(BaseSettings):
     EMOTION_TIMEOUT: float = 10.0
     LLM_TIMEOUT: float = 30.0
     MUSIC_TIMEOUT: float = 5.0
-    SPEECH_TIMEOUT: float = 30.0
+    SPEECH_TIMEOUT: float = 20.0  # transcribe
+    PROSODY_TIMEOUT: float = 10.0
 
     SAFETY_HOTLINE_TEXT: str = ""
     MOCK_LATENCY_MS: int = 0
