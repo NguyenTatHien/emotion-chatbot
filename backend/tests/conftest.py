@@ -44,7 +44,7 @@ def clean_state(monkeypatch, tmp_path):
     """Mỗi test bắt đầu với cấu hình mặc định, phiên rỗng và không có override."""
     for key in _ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
-    # Không bao giờ ghi vào data/feedback.jsonl thật.
+    # Không bao giờ ghi vào data/runtime/feedback.jsonl thật.
     monkeypatch.setenv("FEEDBACK_PATH", str(tmp_path / "feedback.jsonl"))
     reload_settings()
     store.clear()

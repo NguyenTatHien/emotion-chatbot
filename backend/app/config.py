@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.6-flash"
     ADMIN_TOKEN: str = ""
-    FEEDBACK_PATH: str = "data/feedback.jsonl"
+    FEEDBACK_PATH: str = "data/runtime/feedback.jsonl"
     SONGS_CSV: str = "data/songs.csv"
 
     MAX_AUDIO_SECONDS: int = 30
