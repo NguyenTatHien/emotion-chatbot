@@ -1,0 +1,5 @@
+# Chỉ cần khi chạy mode `local` với mô hình thật (không cài mặc định).
+# Các thư viện này PHẢI được import bên trong thân hàm, không import ở đầu file module.
+torch
+transformers
+librosa

@@ -1,0 +1,550 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Emotion Chatbot API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/chat": {
+      "post": {
+        "summary": "Chat",
+        "operationId": "chat_api_chat_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_chat_api_chat_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meta": {
+      "get": {
+        "summary": "Meta",
+        "operationId": "meta_api_meta_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/session/{session_id}": {
+      "get": {
+        "summary": "Session",
+        "operationId": "session_api_session__session_id__get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_chat_api_chat_post": {
+        "properties": {
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "transcript_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript Hint"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "audio_file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio File"
+          }
+        },
+        "type": "object",
+        "title": "Body_chat_api_chat_post"
+      },
+      "ChatResponse": {
+        "properties": {
+          "turn_id": {
+            "type": "string",
+            "title": "Turn Id"
+          },
+          "reply": {
+            "type": "string",
+            "title": "Reply"
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript"
+          },
+          "emotion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Emotion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "songs": {
+            "items": {
+              "$ref": "#/components/schemas/Song"
+            },
+            "type": "array",
+            "title": "Songs"
+          },
+          "safety": {
+            "type": "boolean",
+            "title": "Safety",
+            "default": false
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "turn_id",
+          "reply",
+          "meta"
+        ],
+        "title": "ChatResponse"
+      },
+      "Emotion": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "probs": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Probs"
+          },
+          "arousal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arousal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "probs"
+        ],
+        "title": "Emotion"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "model_server": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down",
+              "n/a"
+            ],
+            "title": "Model Server"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "model_server"
+        ],
+        "title": "HealthResponse"
+      },
+      "Meta": {
+        "properties": {
+          "llm_backend": {
+            "type": "string",
+            "title": "Llm Backend"
+          },
+          "model_mode": {
+            "type": "string",
+            "title": "Model Mode"
+          },
+          "modules": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Modules"
+          },
+          "degraded": {
+            "type": "boolean",
+            "title": "Degraded",
+            "default": false
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms",
+            "default": 0
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "llm_backend",
+          "model_mode",
+          "modules"
+        ],
+        "title": "Meta"
+      },
+      "MetaResponse": {
+        "properties": {
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Labels"
+          },
+          "goals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Goals"
+          },
+          "modules": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Modules"
+          },
+          "model_mode": {
+            "type": "string",
+            "title": "Model Mode"
+          },
+          "llm_backend": {
+            "type": "string",
+            "title": "Llm Backend"
+          }
+        },
+        "type": "object",
+        "required": [
+          "labels",
+          "goals",
+          "modules",
+          "model_mode",
+          "llm_backend"
+        ],
+        "title": "MetaResponse"
+      },
+      "SessionResponse": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/SessionTurn"
+            },
+            "type": "array",
+            "title": "Turns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "turns"
+        ],
+        "title": "SessionResponse"
+      },
+      "SessionTurn": {
+        "properties": {
+          "turn_id": {
+            "type": "string",
+            "title": "Turn Id"
+          },
+          "user_text": {
+            "type": "string",
+            "title": "User Text"
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript"
+          },
+          "reply": {
+            "type": "string",
+            "title": "Reply"
+          },
+          "emotion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Emotion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "songs": {
+            "items": {
+              "$ref": "#/components/schemas/Song"
+            },
+            "type": "array",
+            "title": "Songs"
+          },
+          "safety": {
+            "type": "boolean",
+            "title": "Safety",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "turn_id",
+          "user_text",
+          "reply",
+          "created_at"
+        ],
+        "title": "SessionTurn"
+      },
+      "Song": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "artist": {
+            "type": "string",
+            "title": "Artist"
+          },
+          "youtube_url": {
+            "type": "string",
+            "title": "Youtube Url"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "artist",
+          "youtube_url"
+        ],
+        "title": "Song"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

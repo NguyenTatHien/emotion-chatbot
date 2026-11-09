@@ -6,7 +6,7 @@ Chatbot tiếng Việt nhận tin nhắn văn bản hoặc giọng nói, nhận 
 
 ## Trạng thái
 
-Đang khởi tạo repo. Khung backend, frontend và Docker sẽ được thêm theo kế hoạch 5 ngày.
+Khung backend (FastAPI) đã chạy được hoàn toàn bằng mock. Frontend, voice và Docker sẽ được thêm theo kế hoạch 5 ngày.
 
 ## Luồng xử lý một lượt chat
 
@@ -58,9 +58,53 @@ pytest tests/contract -k <tên_module>
 | `emotion.py` | `predict_emotion(text)` | Người 1 |
 | `speech.py` | `transcribe(wav_path)`, `extract_prosody(wav_path)` | Người 3 |
 | `safety.py` | `check_safety(text)` | Người 3 |
-| `llm.py` | `generate_reply(text, emotion, arousal, history)` | Người 3 |
+| `llm.py` | `generate_reply(text, emotion, arousal, history, goal)` | Người 3 |
 | `music.py` | `recommend(label, arousal, goal, k)` | Người 5 |
 | Backend, frontend, Docker | | Hiển (Người 4) |
+
+## Chạy backend
+
+Yêu cầu: [uv](https://docs.astral.sh/uv/). Từ thư mục `backend/`:
+
+```bash
+uv venv --python 3.11 .venv
+uv pip install --python .venv/Scripts/python.exe -r requirements-dev.txt   # Windows
+# Linux/macOS: uv pip install --python .venv/bin/python -r requirements-dev.txt
+cp .env.example .env            # tùy chọn; mặc định chạy mock
+.venv/Scripts/python.exe -m uvicorn app.main:app --reload --workers 1
+```
+
+> Luôn chạy `--workers 1`: bộ nhớ phiên nằm trong RAM của tiến trình.
+
+Thử nhanh:
+
+```bash
+curl -F session_id=s1 -F message="hôm nay mệt quá" http://127.0.0.1:8000/api/chat
+```
+
+Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tương tác tại `http://127.0.0.1:8000/docs`; file `backend/openapi.json` dùng để sinh kiểu TypeScript cho frontend (`python -m app.tools.export_openapi`).
+
+### Route
+
+| Route | Mô tả |
+|---|---|
+| `POST /api/chat` | Form: `session_id` (bắt buộc), `message`, `audio_file`, `transcript_hint`, `goal` (`xoa_diu`, `nang_mood`, `tap_trung`, `giai_toa`) |
+| `GET /api/health` | `{ok, model_server}` |
+| `GET /api/meta` | Nhãn cảm xúc, goal, mode từng module |
+| `GET /api/session/{session_id}` | Lịch sử các lượt của phiên |
+
+### Biến môi trường chính
+
+| Biến | Mặc định | Ý nghĩa |
+|---|---|---|
+| `MODEL_MODE` | `mock` | Mode chung cho mọi module: `mock` \| `local` \| `remote` |
+| `EMOTION_MODE`, `SPEECH_MODE`, `SAFETY_MODE`, `LLM_MODE`, `MUSIC_MODE` | trống | Ghi đè mode cho từng module |
+| `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Origin được phép gọi API |
+| `HISTORY_TURNS` | `6` | Số lượt gần nhất truyền cho LLM |
+| `MOCK_LATENCY_MS` | `0` | Giả độ trễ cho mock |
+| `SAFETY_HOTLINE_TEXT` | trống | Dòng hỗ trợ thêm vào thông điệp an toàn |
+
+Danh sách đầy đủ kèm chú thích: `backend/.env.example`. Hướng dẫn cắm module thật: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Giới hạn
 

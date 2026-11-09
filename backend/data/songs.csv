@@ -1,0 +1,12 @@
+# Dữ liệu mẫu giữ chỗ — Người 5 sẽ thay bằng danh sách bài hát thật (giữ nguyên các cột).
+title,artist,genre,language,emotion_tags,goal_tags,energy,youtube_url
+Bài mẫu 1,Nghệ sĩ mẫu A,ballad,vi,Sadness|Other,xoa_diu|giai_toa,low,https://www.youtube.com/watch?v=mauBai00001
+Bài mẫu 2,Nghệ sĩ mẫu B,acoustic,vi,Sadness|Fear,xoa_diu|tap_trung,low,https://www.youtube.com/watch?v=mauBai00002
+Bài mẫu 3,Nghệ sĩ mẫu C,pop,vi,Enjoyment|Surprise,nang_mood,high,https://www.youtube.com/watch?v=mauBai00003
+Bài mẫu 4,Nghệ sĩ mẫu D,dance,vi,Enjoyment|Other,nang_mood|giai_toa,high,https://www.youtube.com/watch?v=mauBai00004
+Bài mẫu 5,Nghệ sĩ mẫu E,rock,vi,Anger|Disgust,giai_toa,high,https://www.youtube.com/watch?v=mauBai00005
+Bài mẫu 6,Nghệ sĩ mẫu F,lofi,vi,Anger|Fear|Other,tap_trung|xoa_diu,low,https://www.youtube.com/watch?v=mauBai00006
+Bài mẫu 7,Nghệ sĩ mẫu G,indie,vi,Disgust|Other,giai_toa|tap_trung,medium,https://www.youtube.com/watch?v=mauBai00007
+Bài mẫu 8,Nghệ sĩ mẫu H,instrumental,vi,Fear|Surprise|Other,tap_trung|xoa_diu,medium,https://www.youtube.com/watch?v=mauBai00008
+Bài mẫu 9,Nghệ sĩ mẫu I,pop,vi,Surprise|Enjoyment,nang_mood|tap_trung,medium,https://www.youtube.com/watch?v=mauBai00009
+Bài mẫu 10,Nghệ sĩ mẫu J,ballad,vi,Other|Sadness|Enjoyment,xoa_diu|nang_mood,medium,https://www.youtube.com/watch?v=mauBai00010
