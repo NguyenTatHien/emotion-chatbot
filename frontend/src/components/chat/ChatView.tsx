@@ -12,13 +12,15 @@ import { PromptBar } from "./PromptBar"
 export function ChatView() {
   const { sessionId, newSession } = useSession()
   const [goal, setGoal] = useState<Goal | null>(null)
-  const { messages, pending, lastMeta, send, retry, resetMeta } = useChat(
-    sessionId,
-    goal
-  )
+  const { messages, pending, lastMeta, send, sendVoice, retry, resetMeta } =
+    useChat(sessionId, goal)
   const { meta, failed } = useMeta()
 
-  const connection: Connection = failed ? "offline" : meta ? "online" : "connecting"
+  const connection: Connection = failed
+    ? "offline"
+    : meta
+      ? "online"
+      : "connecting"
   const degraded = lastMeta?.degraded === true
   const warnedRef = useRef(false)
 
@@ -52,7 +54,13 @@ export function ChatView() {
       ) : (
         <MessageList messages={messages} pending={pending} onRetry={retry} />
       )}
-      <PromptBar onSend={send} goal={goal} onGoalChange={setGoal} />
+      <PromptBar
+        onSend={send}
+        onSendVoice={sendVoice}
+        busy={pending}
+        goal={goal}
+        onGoalChange={setGoal}
+      />
     </div>
   )
 }

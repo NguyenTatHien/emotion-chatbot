@@ -41,10 +41,19 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await res.json()) as T
 }
 
+export interface SendChatAudio {
+  blob: Blob
+  filename: string
+}
+
 export interface SendChatInput {
   sessionId: string
-  message: string
+  /** Bỏ trống khi gửi tin giọng nói. */
+  message?: string
   goal?: string | null
+  audio?: SendChatAudio
+  /** Chữ nhận dạng sẵn trên trình duyệt (Web Speech), dùng khi server nhận dạng lỗi. */
+  transcriptHint?: string
   signal?: AbortSignal
 }
 
@@ -52,12 +61,17 @@ export async function sendChat({
   sessionId,
   message,
   goal,
+  audio,
+  transcriptHint,
   signal,
 }: SendChatInput): Promise<ChatResponse> {
   const form = new FormData()
   form.append("session_id", sessionId)
-  form.append("message", message)
+  if (message) form.append("message", message)
   if (goal) form.append("goal", goal)
+  if (audio) form.append("audio_file", audio.blob, audio.filename)
+  if (transcriptHint?.trim())
+    form.append("transcript_hint", transcriptHint.trim())
   const res = await fetch(`${API_BASE}/chat`, {
     method: "POST",
     body: form,

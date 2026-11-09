@@ -2,7 +2,10 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react"
 import { ApiError, getSession, sendChat } from "@/lib/api"
 import type { ResponseMeta } from "@/lib/api"
 import { messagesKey, readJson, writeJson } from "@/lib/storage"
+import { filenameFor } from "./useRecorder"
+import type { VoiceRecording } from "./useVoiceRecording"
 import {
+  audioUrlsOf,
   chatReducer,
   initialState,
   toStored,
@@ -28,6 +31,13 @@ export function errorText(err: unknown): string {
   return "Không kết nối được tới máy chủ."
 }
 
+/** Dữ liệu cần giữ để gửi lại tin giọng nói khi lỗi (không đưa vào state/localStorage). */
+interface VoicePayload {
+  blob: Blob
+  filename: string
+  transcriptHint: string
+}
+
 export function useChat(sessionId: string, goal: string | null) {
   const [state, dispatch] = useReducer(chatReducer, undefined, () =>
     initialState(sessionId, loadLocal(sessionId))
@@ -35,6 +45,7 @@ export function useChat(sessionId: string, goal: string | null) {
   const [lastMeta, setLastMeta] = useState<ResponseMeta | null>(null)
   const sessionRef = useRef(sessionId)
   const messagesRef = useRef(state.messages)
+  const voiceRef = useRef(new Map<string, VoicePayload>())
   useEffect(() => {
     sessionRef.current = sessionId
     messagesRef.current = state.messages
@@ -49,7 +60,11 @@ export function useChat(sessionId: string, goal: string | null) {
     getSession(sessionId, controller.signal)
       .then((res) => {
         if (res.turns.length > 0) {
-          dispatch({ type: "hydrate", sessionId, messages: turnsToMessages(res.turns) })
+          dispatch({
+            type: "hydrate",
+            sessionId,
+            messages: turnsToMessages(res.turns),
+          })
         }
       })
       .catch(() => {
@@ -57,6 +72,17 @@ export function useChat(sessionId: string, goal: string | null) {
       })
     return () => controller.abort()
   }, [sessionId])
+
+  // Đổi/đặt lại phiên hoặc rời trang: thu hồi object URL của các bản ghi cũ.
+  useEffect(
+    () => () => {
+      audioUrlsOf(messagesRef.current).forEach((url) =>
+        URL.revokeObjectURL(url)
+      )
+      voiceRef.current.clear()
+    },
+    [sessionId]
+  )
 
   // Lưu tin đã hoàn tất.
   useEffect(() => {
@@ -67,10 +93,21 @@ export function useChat(sessionId: string, goal: string | null) {
   const deliver = useCallback(
     async (userId: string, text: string, msgGoal: string | null) => {
       const forSession = sessionRef.current
+      const voice = voiceRef.current.get(userId)
       try {
-        const response = await sendChat({ sessionId: forSession, message: text, goal: msgGoal })
+        const response = await sendChat(
+          voice
+            ? {
+                sessionId: forSession,
+                goal: msgGoal,
+                audio: { blob: voice.blob, filename: voice.filename },
+                transcriptHint: voice.transcriptHint,
+              }
+            : { sessionId: forSession, message: text, goal: msgGoal }
+        )
         if (sessionRef.current !== forSession) return
         setLastMeta(response.meta)
+        voiceRef.current.delete(userId)
         dispatch({
           type: "resolve",
           userId,
@@ -86,16 +123,58 @@ export function useChat(sessionId: string, goal: string | null) {
     []
   )
 
-  const pending = state.messages.some((m) => m.role === "user" && m.status === "sending")
+  const pending = state.messages.some(
+    (m) => m.role === "user" && m.status === "sending"
+  )
 
   const send = useCallback(
     (raw: string): boolean => {
       const text = raw.trim()
       if (!text) return false
-      if (messagesRef.current.some((m) => m.role === "user" && m.status === "sending")) return false
+      if (
+        messagesRef.current.some(
+          (m) => m.role === "user" && m.status === "sending"
+        )
+      )
+        return false
       const id = newId()
-      dispatch({ type: "send", id, text, goal, createdAt: new Date().toISOString() })
+      dispatch({
+        type: "send",
+        id,
+        text,
+        goal,
+        createdAt: new Date().toISOString(),
+      })
       void deliver(id, text, goal)
+      return true
+    },
+    [deliver, goal]
+  )
+
+  const sendVoice = useCallback(
+    (voice: VoiceRecording): boolean => {
+      if (
+        messagesRef.current.some(
+          (m) => m.role === "user" && m.status === "sending"
+        )
+      )
+        return false
+      const id = newId()
+      const audioUrl = URL.createObjectURL(voice.blob)
+      voiceRef.current.set(id, {
+        blob: voice.blob,
+        filename: filenameFor(voice.mimeType),
+        transcriptHint: voice.transcriptHint,
+      })
+      dispatch({
+        type: "send",
+        id,
+        text: voice.transcriptHint.trim(),
+        goal,
+        createdAt: new Date().toISOString(),
+        voice: { audioUrl, durationMs: voice.durationMs },
+      })
+      void deliver(id, voice.transcriptHint, goal)
       return true
     },
     [deliver, goal]
@@ -118,6 +197,7 @@ export function useChat(sessionId: string, goal: string | null) {
     pending,
     lastMeta,
     send,
+    sendVoice,
     retry,
     resetMeta,
   }

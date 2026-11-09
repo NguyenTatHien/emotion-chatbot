@@ -1,14 +1,11 @@
 import { CircleAlert, RotateCcw } from "lucide-react"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
-import {
-  Message,
-  MessageContent,
-  MessageFooter,
-} from "@/components/ui/message"
+import { Message, MessageContent, MessageFooter } from "@/components/ui/message"
 import { Spinner } from "@/components/ui/spinner"
 import { ArousalChip, EmotionChip } from "@/components/emotion/EmotionChip"
 import type { UserMessage as UserMsg } from "@/hooks/chat-state"
+import { VoiceBubble } from "./VoiceBubble"
 
 interface UserMessageProps {
   message: UserMsg
@@ -20,9 +17,21 @@ export function UserMessage({ message, onRetry }: UserMessageProps) {
   return (
     <Message align="end">
       <MessageContent>
-        <Bubble align="end" variant={message.status === "error" ? "destructive" : "default"}>
+        <Bubble
+          align="end"
+          variant={message.status === "error" ? "destructive" : "default"}
+        >
           <BubbleContent className="px-4 py-2.5 text-base whitespace-pre-wrap">
-            {message.text}
+            {message.kind === "voice" ? (
+              <VoiceBubble
+                audioUrl={message.audioUrl}
+                durationMs={message.durationMs}
+                transcript={message.text}
+                pending={message.status === "sending"}
+              />
+            ) : (
+              message.text
+            )}
           </BubbleContent>
         </Bubble>
         {message.status === "sending" ? (

@@ -12,6 +12,11 @@ export interface UserMessage {
   /** Cảm xúc của lượt này (null khi chưa có hoặc lượt an toàn). */
   emotion: Emotion | null
   error?: string
+  /** Tin giọng nói: `text` là transcript (chữ dự phòng khi chờ, chữ của server khi đã có). */
+  kind?: "voice"
+  /** Object URL của bản ghi tại máy; không lưu vào localStorage. */
+  audioUrl?: string
+  durationMs?: number
 }
 
 export interface BotMessage {
@@ -41,8 +46,15 @@ export type ChatAction =
       text: string
       goal: string | null
       createdAt: string
+      voice?: { audioUrl: string; durationMs: number }
     }
-  | { type: "resolve"; userId: string; botId: string; response: ChatResponse; createdAt: string }
+  | {
+      type: "resolve"
+      userId: string
+      botId: string
+      response: ChatResponse
+      createdAt: string
+    }
   | { type: "fail"; userId: string; error: string }
   | { type: "retry"; userId: string }
   | { type: "switch"; sessionId: string; messages: ChatMessage[] }
@@ -50,7 +62,10 @@ export type ChatAction =
 
 export const MAX_STORED_MESSAGES = 100
 
-export function initialState(sessionId: string, messages: ChatMessage[]): ChatState {
+export function initialState(
+  sessionId: string,
+  messages: ChatMessage[]
+): ChatState {
   return { sessionId, messages }
 }
 
@@ -69,6 +84,13 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
             createdAt: action.createdAt,
             goal: action.goal,
             emotion: null,
+            ...(action.voice
+              ? {
+                  kind: "voice" as const,
+                  audioUrl: action.voice.audioUrl,
+                  durationMs: action.voice.durationMs,
+                }
+              : {}),
           },
         ],
       }
@@ -81,6 +103,10 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
               status: "sent",
               error: undefined,
               emotion: response.safety ? null : (response.emotion ?? null),
+              text:
+                m.kind === "voice"
+                  ? response.transcript?.trim() || m.text
+                  : m.text,
             }
           : m
       )
@@ -119,7 +145,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return { sessionId: action.sessionId, messages: action.messages }
     case "hydrate":
       // Bỏ qua nếu đã đổi phiên hoặc người dùng đã kịp gửi tin.
-      if (state.sessionId !== action.sessionId || state.messages.length > 0) return state
+      if (state.sessionId !== action.sessionId || state.messages.length > 0)
+        return state
       return { ...state, messages: action.messages }
   }
 }
@@ -135,8 +162,20 @@ export function toStored(messages: ChatMessage[]): ChatMessage[] {
         void _fresh
         return rest
       }
+      if (m.kind === "voice") {
+        const { audioUrl: _audioUrl, ...rest } = m
+        void _audioUrl
+        return rest
+      }
       return m
     })
+}
+
+/** Các object URL của bản ghi, để thu hồi khi đổi/xoá phiên. */
+export function audioUrlsOf(messages: ChatMessage[]): string[] {
+  return messages.flatMap((m) =>
+    m.role === "user" && m.audioUrl ? [m.audioUrl] : []
+  )
 }
 
 /** Chuyển các lượt từ GET /api/session/{id} thành danh sách tin. */
@@ -147,11 +186,12 @@ export function turnsToMessages(turns: SessionTurn[]): ChatMessage[] {
       {
         id: userId,
         role: "user",
-        text: t.user_text || t.transcript || "",
+        text: t.transcript || t.user_text || "",
         status: "sent",
         createdAt: t.created_at,
         goal: null,
         emotion: t.safety ? null : (t.emotion ?? null),
+        ...(t.transcript ? { kind: "voice" as const } : {}),
       },
       {
         id: `${t.turn_id}-b`,
