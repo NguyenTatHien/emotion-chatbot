@@ -6,7 +6,7 @@ Chatbot tiếng Việt nhận tin nhắn văn bản hoặc giọng nói, nhận 
 
 ## Trạng thái
 
-Khung backend (FastAPI) đã chạy được hoàn toàn bằng mock. Frontend, voice và Docker sẽ được thêm theo kế hoạch 5 ngày.
+Khung backend (FastAPI) và giao diện chat (React) đã chạy được hoàn toàn bằng mock. Voice, tích hợp mô hình thật và Docker sẽ được thêm theo kế hoạch 5 ngày.
 
 ## Luồng xử lý một lượt chat
 
@@ -105,6 +105,30 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 | `SAFETY_HOTLINE_TEXT` | trống | Dòng hỗ trợ thêm vào thông điệp an toàn |
 
 Danh sách đầy đủ kèm chú thích: `backend/.env.example`. Hướng dẫn cắm module thật: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Chạy frontend
+
+Yêu cầu: Node 22+ và pnpm. Chạy backend trước (xem trên), rồi từ thư mục `frontend/`:
+
+```bash
+pnpm install
+pnpm dev            # http://localhost:5173, proxy /api -> http://127.0.0.1:8000
+```
+
+| Lệnh | Việc |
+|---|---|
+| `pnpm lint` | ESLint |
+| `pnpm test` | Vitest + Testing Library (jsdom) |
+| `pnpm build` | `tsc -b` + build production vào `dist/` |
+| `pnpm gen:types` | Sinh `src/lib/api-types.gen.ts` từ `backend/openapi.json` (chạy lại sau khi đổi API) |
+
+Ghi chú kỹ thuật:
+
+- Khởi tạo bằng `shadcn` CLI **4.23.0** (`pnpm dlx shadcn@latest init -t vite -b radix -p nova`), style `radix-nova`, base Radix. Component shadcn nằm ở `src/components/ui/` (không sửa tay); phần tuỳ biến nằm ở `src/components/{chat,emotion,music,system}/`. Các component `message`, `message-scroller`, `bubble` phụ thuộc gói `@shadcn/react`.
+- Không dùng Vercel AI SDK; state chat tự quản bằng `useReducer` (`src/hooks/chat-state.ts`, `useChat.ts`). Gọi API bằng `fetch` với đường dẫn tương đối `/api`.
+- Font Be Vietnam Pro tự host qua `@fontsource` (không gọi Google Fonts). Màu chủ đạo violet-600; 7 màu cảm xúc là biến CSS `--emo-*` trong `src/index.css` (light/dark).
+- Phiên: `session_id` và tin nhắn lưu trong localStorage (`ec.session_id`, `ec.messages.<id>`); nếu localStorage trống thì khôi phục từ `GET /api/session/{id}`.
+- Chỗ chừa cho nút ghi âm: prop `voiceSlot` của `PromptBar` (change `add-voice-input`).
 
 ## Giới hạn
 
