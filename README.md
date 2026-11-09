@@ -1,12 +1,14 @@
 # Emotion Chatbot
 
+[![CI](https://github.com/NguyenTatHien/emotion-chatbot/actions/workflows/ci.yml/badge.svg)](https://github.com/NguyenTatHien/emotion-chatbot/actions/workflows/ci.yml)
+
 Chatbot tiếng Việt nhận tin nhắn văn bản hoặc giọng nói, nhận diện cảm xúc người dùng, trả lời theo hướng đồng cảm và gợi ý 3–5 bài hát phù hợp. Đồ án cuối kỳ môn NLP501.
 
 > Đây **không phải** công cụ chẩn đoán tâm lý. Khi phát hiện dấu hiệu tự làm hại, hệ thống chuyển sang thông điệp an toàn.
 
 ## Trạng thái
 
-Khung backend (FastAPI), giao diện chat (React), nhập giọng nói, chế độ `remote` gọi model server trên Colab, chuỗi dự phòng LLM (Qwen → Gemini → câu soạn sẵn) và nút đánh giá đã chạy được; toàn bộ vẫn chạy được bằng mock. Docker sẽ được thêm theo kế hoạch 5 ngày.
+Khung backend (FastAPI), giao diện chat (React), nhập giọng nói, chế độ `remote` gọi model server trên Colab, chuỗi dự phòng LLM (Qwen → Gemini → câu soạn sẵn) và nút đánh giá đã chạy được; toàn bộ vẫn chạy được bằng mock. Đã có Docker (chạy local, dev có hot reload), CI GitHub Actions và cấu hình triển khai lên server.
 
 ## Luồng xử lý một lượt chat
 
@@ -42,7 +44,10 @@ emotion-chatbot/
 ├── frontend/           # React + shadcn/ui
 ├── colab/              # khung model server (FastAPI) + hướng dẫn chạy trên Colab
 ├── notebooks/          # đánh giá E1–E4
-└── docker-compose.yml
+├── deploy/             # compose production, deploy.sh, hướng dẫn triển khai
+├── .github/workflows/  # ci.yml (kiểm thử), images.yml (build + đẩy image GHCR)
+├── docker-compose.yml      # chạy local (cổng 8080)
+└── docker-compose.dev.yml  # dev có hot reload
 ```
 
 ## Hợp đồng module
@@ -61,6 +66,37 @@ pytest tests/contract -k <tên_module>
 | `llm.py` | `generate_reply(text, emotion, arousal, history, goal)` | Người 3 |
 | `music.py` | `recommend(label, arousal, goal, k)` | Người 5 |
 | Backend, frontend, Docker | | Hiển (Người 4) |
+
+## Chạy bằng Docker
+
+Yêu cầu: Docker Desktop (hoặc Docker Engine + Compose v2). Từ gốc repo:
+
+```bash
+docker compose up --build        # http://localhost:8080
+docker compose down              # dừng và xóa container
+```
+
+- `web` (Caddy) phục vụ giao diện và chuyển `/api/*` tới `backend` trong mạng nội bộ; `backend` không mở cổng ra ngoài. Body gửi lên `/api` bị giới hạn 6 MB (vượt thì trả 413).
+- `backend` đọc `backend/.env` nếu có (mặc định chạy mock). Image backend target `base` có ffmpeg nhưng **không** có torch; target `ml` (thêm torch CPU, transformers, librosa) dùng cho mode `local`: `docker build --target ml backend`.
+- Trên Windows nếu `http://localhost:8080` không phản hồi từ một số công cụ dòng lệnh, dùng `http://127.0.0.1:8080`.
+
+Chế độ dev có hot reload (backend `--reload`, Vite dev server):
+
+```bash
+docker compose -f docker-compose.dev.yml up --build   # giao diện http://localhost:5173, API http://localhost:8000
+```
+
+Mã nguồn được mount vào container và bật polling để nhận thay đổi trên Windows; Vite proxy `/api` tới `backend:8000` qua biến `VITE_API_PROXY` (mặc định `http://127.0.0.1:8000` khi chạy `pnpm dev` ngoài Docker).
+
+## Kiến trúc triển khai
+
+```
+push main ─▶ GitHub Actions (images.yml) ─▶ ghcr.io/nguyentathien/emotion-chatbot-{api,web}:sha-<7>/latest
+                                                         │ docker compose pull
+Internet ─▶ javis-proxy (HTTPS) ─▶ web (Caddy) ─▶ backend (FastAPI)      trên realestate-vm
+```
+
+CI (`ci.yml`) chạy `ruff` + `pytest` cho backend và `pnpm lint` + `pnpm test` + `pnpm build` cho frontend trên mọi pull request và push `main`. Server chỉ `pull` image build sẵn, chạy sau reverse proxy dùng chung với giới hạn bộ nhớ. Điều kiện trước, cách thử bằng subdomain test, triển khai, rollback và gỡ bỏ: xem [deploy/README.md](deploy/README.md).
 
 ## Chạy backend
 
@@ -108,14 +144,14 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 | `MODEL_SERVER_URL`, `MODEL_SERVER_TOKEN` | trống | URL và bí mật dùng chung của model server (bắt buộc URL khi có module remote) |
 | `REMOTE_TIMEOUT_EMOTION/TRANSCRIBE/PROSODY/GENERATE` | `10/20/10/30` | Timeout (giây) từng lời gọi tới model server |
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | trống, `gemini-3.6-flash` | Dự phòng Gemini; trống khoá = bỏ bước này |
-| `FEEDBACK_PATH`, `ADMIN_TOKEN` | `data/feedback.jsonl`, trống | File đánh giá; trống `ADMIN_TOKEN` = route export trả 404 |
+| `FEEDBACK_PATH`, `ADMIN_TOKEN` | `data/runtime/feedback.jsonl`, trống | File đánh giá; trống `ADMIN_TOKEN` = route export trả 404 |
 
 | `MAX_AUDIO_SECONDS`, `MAX_AUDIO_MB` | `30`, `5` | Giới hạn bản ghi; vượt thì trả HTTP 413 |
 | `FFMPEG_BINARY` | `ffmpeg` | Tên hoặc đường dẫn ffmpeg dùng để chuẩn hoá audio |
 
 ### Giọng nói
 
-- **Cần ffmpeg** khi chạy backend không dùng Docker: backend chuẩn hoá mọi định dạng trình duyệt gửi (webm/opus, ogg, mp4/aac, wav) sang WAV 16 kHz mono trước khi gọi `speech.py`. Cài ffmpeg (`winget install ffmpeg`, `brew install ffmpeg` hoặc `apt install ffmpeg`) rồi đảm bảo có trên `PATH`, hoặc đặt `FFMPEG_BINARY`. Nếu không thấy, backend thử gói `imageio-ffmpeg` (chỉ có trong `requirements-dev.txt`, dùng cho test/dev); vẫn không có thì bước speech được coi là lỗi và hệ thống dùng chữ nhận dạng sẵn từ trình duyệt (`transcript_hint`), không trả 500. Image Docker (change sau) phải cài ffmpeg bằng apt.
+- **Cần ffmpeg** khi chạy backend không dùng Docker: backend chuẩn hoá mọi định dạng trình duyệt gửi (webm/opus, ogg, mp4/aac, wav) sang WAV 16 kHz mono trước khi gọi `speech.py`. Cài ffmpeg (`winget install ffmpeg`, `brew install ffmpeg` hoặc `apt install ffmpeg`) rồi đảm bảo có trên `PATH`, hoặc đặt `FFMPEG_BINARY`. Nếu không thấy, backend thử gói `imageio-ffmpeg` (chỉ có trong `requirements-dev.txt`, dùng cho test/dev); vẫn không có thì bước speech được coi là lỗi và hệ thống dùng chữ nhận dạng sẵn từ trình duyệt (`transcript_hint`), không trả 500. Image Docker đã cài ffmpeg bằng apt.
 - Mã lỗi: `413` khi file quá `MAX_AUDIO_MB` hoặc dài hơn `MAX_AUDIO_SECONDS` + 1 giây, `415` khi ffmpeg không giải mã được, `400` khi không nhận dạng được chữ nào và không có `message`/`transcript_hint`.
 - Test tự sinh audio mẫu bằng ffmpeg, không commit file nhị phân.
 
@@ -137,7 +173,7 @@ Dưới mỗi câu trả lời của bot (trừ lượt an toàn) có nút "Hữ
 curl -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:8000/api/feedback/export -o feedback.csv
 ```
 
-Cần đặt `ADMIN_TOKEN` trong `.env`; để trống thì route trả 404. File dữ liệu được `.gitignore` bỏ qua; khi triển khai Docker hãy mount volume cho thư mục chứa nó.
+Cần đặt `ADMIN_TOKEN` trong `.env`; để trống thì route trả 404. File dữ liệu được `.gitignore` bỏ qua; trong Docker, mặc định file nằm ở `/app/data/runtime/feedback.jsonl` và production mount volume `emotion-data` vào thư mục này.
 
 Danh sách đầy đủ kèm chú thích: `backend/.env.example`. Hướng dẫn cắm module thật: [CONTRIBUTING.md](CONTRIBUTING.md).
 

@@ -1,0 +1,33 @@
+# Production trên realestate-vm, chạy sau javis-proxy (caddy-docker-proxy) dùng chung.
+# Chạy từ /opt/emotion-chatbot:  TAG=sha-xxxxxxx docker compose -f docker-compose.prod.yml up -d
+name: emotion-chatbot
+
+services:
+  backend:
+    image: ghcr.io/nguyentathien/emotion-chatbot-api:${TAG:-latest}
+    restart: unless-stopped
+    mem_limit: 512m
+    env_file: .env
+    volumes:
+      - emotion-data:/app/data/runtime
+    networks: [internal]
+
+  web:
+    image: ghcr.io/nguyentathien/emotion-chatbot-web:${TAG:-latest}
+    restart: unless-stopped
+    mem_limit: 128m
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [internal, javis-web]
+    labels:
+      caddy: emotion.hiennguyen.io.vn
+      caddy.reverse_proxy: "{{upstreams 80}}"
+
+networks:
+  internal:
+  javis-web:
+    external: true
+
+volumes:
+  emotion-data:
