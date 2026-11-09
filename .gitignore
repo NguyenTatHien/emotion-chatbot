@@ -1,0 +1,44 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+*.log
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Model weights and caches
+*.bin
+*.safetensors
+*.pt
+*.ckpt
+.cache/
+hf_cache/
+
+# Audio uploads and temp files
+uploads/
+tmp/
+*.wav
+*.webm
+
+# Course documents (do not publish)
+*.pdf
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
