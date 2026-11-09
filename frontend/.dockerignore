@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dist-ssr/
+.env
+.env.*
+!.env.example
+*.log
+*.local
+.vscode/
+.idea/
+Dockerfile
+.dockerignore
+feedback*.jsonl
+feedback*.csv
+.pytest_cache/
+.ruff_cache/
+__pycache__/
