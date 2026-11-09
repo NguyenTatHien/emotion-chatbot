@@ -1,4 +1,4 @@
-import { TriangleAlert } from "lucide-react"
+import { Server, ServerOff, TriangleAlert } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   Tooltip,
@@ -12,17 +12,85 @@ const MODE_VI: Record<string, string> = {
   remote: "Máy chủ mô hình",
 }
 
+const LLM_VI: Record<string, string> = {
+  mock: "Mô phỏng",
+  qwen: "Qwen",
+  gemini: "Gemini",
+  canned: "Câu soạn sẵn",
+}
+
 interface StatusBadgeProps {
   mode?: string | null
   degraded?: boolean
   warnings?: string[]
+  /** Trạng thái model server từ /api/health; null khi chưa biết. */
+  modelServer?: "up" | "down" | "n/a" | null
+  /** Nguồn thực tế đã trả lời ở lượt gần nhất. */
+  llmBackend?: string | null
+}
+
+function ModelServerBadge({ status }: { status: "up" | "down" }) {
+  const down = status === "down"
+  return (
+    <Badge
+      variant="outline"
+      className={
+        down
+          ? "h-7 gap-1 border-destructive px-2.5 text-destructive"
+          : "h-7 gap-1 px-2.5"
+      }
+      role="status"
+      aria-label={
+        down ? "Máy chủ mô hình đang ngắt kết nối" : "Máy chủ mô hình hoạt động"
+      }
+    >
+      {down ? (
+        <ServerOff aria-hidden="true" />
+      ) : (
+        <Server aria-hidden="true" />
+      )}
+      <span className="hidden sm:inline">
+        {down ? "Máy chủ mô hình ngắt" : "Máy chủ mô hình"}
+      </span>
+    </Badge>
+  )
 }
 
 export function StatusBadge({
   mode,
   degraded = false,
   warnings = [],
+  modelServer = null,
+  llmBackend = null,
 }: StatusBadgeProps) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {modelServer === "up" || modelServer === "down" ? (
+        <ModelServerBadge status={modelServer} />
+      ) : null}
+      {llmBackend ? (
+        <Badge
+          variant="outline"
+          className="hidden h-7 px-2.5 sm:inline-flex"
+          aria-label={`Nguồn trả lời gần nhất: ${LLM_VI[llmBackend] ?? llmBackend}`}
+        >
+          {LLM_VI[llmBackend] ?? llmBackend}
+        </Badge>
+      ) : null}
+      <ModeBadge mode={mode} degraded={degraded} warnings={warnings} />
+    </div>
+  )
+}
+
+function ModeBadge({
+  mode,
+  degraded,
+  warnings,
+}: {
+  mode?: string | null
+  degraded: boolean
+  warnings: string[]
+}) {
   if (degraded) {
     return (
       <Tooltip>

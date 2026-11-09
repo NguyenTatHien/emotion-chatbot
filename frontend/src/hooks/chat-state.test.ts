@@ -141,3 +141,24 @@ describe("toStored", () => {
     expect("fresh" in out[0]).toBe(false)
   })
 })
+
+describe("đánh giá", () => {
+  it("resolve lưu turnId, rate đổi rating đúng tin bot", () => {
+    let s = sent(initialState("s", []))
+    s = chatReducer(s, { type: "resolve", userId: "u1", botId: "b1", response, createdAt: "now" })
+    expect(s.messages[1]).toMatchObject({ turnId: "t1", rating: null })
+    s = chatReducer(s, { type: "rate", botId: "b1", rating: "up" })
+    expect(s.messages[1]).toMatchObject({ rating: "up" })
+    expect(s.messages[0]).not.toHaveProperty("rating")
+    s = chatReducer(s, { type: "rate", botId: "b1", rating: null })
+    expect(s.messages[1]).toMatchObject({ rating: null })
+  })
+
+  it("turnsToMessages gắn turnId và toStored giữ rating", () => {
+    const turn = { turn_id: "t9", user_text: "a", reply: "b", songs: [], safety: false, created_at: "x" }
+    const msgs = turnsToMessages([turn as SessionTurn])
+    expect(msgs[1]).toMatchObject({ turnId: "t9" })
+    const rated = chatReducer(initialState("s", msgs), { type: "rate", botId: "t9-b", rating: "down" })
+    expect(toStored(rated.messages)[1]).toMatchObject({ rating: "down", turnId: "t9" })
+  })
+})

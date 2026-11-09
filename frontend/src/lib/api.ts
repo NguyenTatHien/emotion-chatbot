@@ -81,6 +81,27 @@ export async function sendChat({
   return (await res.json()) as ChatResponse
 }
 
+export type Rating = "up" | "down"
+
+export async function sendFeedback(
+  sessionId: string,
+  turnId: string,
+  rating: Rating,
+  signal?: AbortSignal
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session_id: sessionId,
+      turn_id: turnId,
+      rating,
+    }),
+    signal,
+  })
+  if (!res.ok) throw await toApiError(res)
+}
+
 export const getMeta = (signal?: AbortSignal) =>
   getJson<MetaResponse>("/meta", signal)
 

@@ -4,9 +4,16 @@ import { SongList } from "@/components/music/SongList"
 import { SafetyAlert } from "@/components/system/SafetyAlert"
 import type { BotMessage as BotMsg } from "@/hooks/chat-state"
 import { useTypewriter } from "@/hooks/useTypewriter"
+import type { Rating } from "@/lib/api"
 import { BotAvatar } from "./BotAvatar"
+import { FeedbackButtons } from "./FeedbackButtons"
 
-export function BotMessage({ message }: { message: BotMsg }) {
+interface BotMessageProps {
+  message: BotMsg
+  onRate?: (id: string, rating: Rating) => void
+}
+
+export function BotMessage({ message, onRate }: BotMessageProps) {
   const { text } = useTypewriter(message.text, message.fresh === true)
   return (
     <Message>
@@ -24,6 +31,12 @@ export function BotMessage({ message }: { message: BotMsg }) {
           </Bubble>
         )}
         {!message.safety ? <SongList songs={message.songs} /> : null}
+        {!message.safety && message.turnId && onRate ? (
+          <FeedbackButtons
+            rating={message.rating}
+            onRate={(rating) => onRate(message.id, rating)}
+          />
+        ) : null}
       </MessageContent>
     </Message>
   )

@@ -17,6 +17,8 @@ interface ChatHeaderProps {
   mode?: string | null
   degraded?: boolean
   warnings?: string[]
+  modelServer?: "up" | "down" | "n/a" | null
+  llmBackend?: string | null
   onNewConversation: () => void
 }
 
@@ -25,6 +27,8 @@ export function ChatHeader({
   mode,
   degraded,
   warnings,
+  modelServer,
+  llmBackend,
   onNewConversation,
 }: ChatHeaderProps) {
   return (
@@ -56,7 +60,13 @@ export function ChatHeader({
           {STATUS_TEXT[connection]}
         </p>
       </div>
-      <StatusBadge mode={mode} degraded={degraded} warnings={warnings} />
+      <StatusBadge
+        mode={mode}
+        degraded={degraded}
+        warnings={warnings}
+        modelServer={modelServer}
+        llmBackend={llmBackend}
+      />
       <Button
         type="button"
         variant="ghost"

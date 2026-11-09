@@ -1,4 +1,10 @@
-import type { ChatResponse, Emotion, SessionTurn, Song } from "@/lib/api"
+import type {
+  ChatResponse,
+  Emotion,
+  Rating,
+  SessionTurn,
+  Song,
+} from "@/lib/api"
 
 export type MessageStatus = "sending" | "sent" | "error"
 
@@ -28,6 +34,10 @@ export interface BotMessage {
   songs: Song[]
   safety: boolean
   replyTo: string
+  /** Mã lượt của backend, dùng để gửi đánh giá (tin lưu từ bản cũ có thể thiếu). */
+  turnId?: string
+  /** Đánh giá đã gửi cho câu trả lời này. */
+  rating?: Rating | null
   /** Chỉ true với tin vừa nhận (để hiện dần); không lưu vào localStorage. */
   fresh?: boolean
 }
@@ -55,6 +65,7 @@ export type ChatAction =
       response: ChatResponse
       createdAt: string
     }
+  | { type: "rate"; botId: string; rating: Rating | null }
   | { type: "fail"; userId: string; error: string }
   | { type: "retry"; userId: string }
   | { type: "switch"; sessionId: string; messages: ChatMessage[] }
@@ -119,10 +130,21 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         songs: response.safety ? [] : (response.songs ?? []),
         safety: response.safety ?? false,
         replyTo: action.userId,
+        turnId: response.turn_id,
+        rating: null,
         fresh: true,
       })
       return { ...state, messages }
     }
+    case "rate":
+      return {
+        ...state,
+        messages: state.messages.map((m): ChatMessage =>
+          m.id === action.botId && m.role === "bot"
+            ? { ...m, rating: action.rating }
+            : m
+        ),
+      }
     case "fail":
       return {
         ...state,
@@ -202,6 +224,8 @@ export function turnsToMessages(turns: SessionTurn[]): ChatMessage[] {
         songs: t.safety ? [] : (t.songs ?? []),
         safety: t.safety ?? false,
         replyTo: userId,
+        turnId: t.turn_id,
+        rating: null,
       },
     ]
   })

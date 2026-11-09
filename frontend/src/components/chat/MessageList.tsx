@@ -8,6 +8,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 import type { ChatMessage } from "@/hooks/chat-state"
+import type { Rating } from "@/lib/api"
 import { BotMessage } from "./BotMessage"
 import { TypingIndicator } from "./TypingIndicator"
 import { UserMessage } from "./UserMessage"
@@ -16,9 +17,10 @@ interface MessageListProps {
   messages: ChatMessage[]
   pending: boolean
   onRetry: (id: string) => void
+  onRate?: (id: string, rating: Rating) => void
 }
 
-export function MessageList({ messages, pending, onRetry }: MessageListProps) {
+export function MessageList({ messages, pending, onRetry, onRate }: MessageListProps) {
   return (
     <MessageScrollerProvider defaultScrollPosition="end">
       <MessageScroller className="flex-1">
@@ -39,7 +41,7 @@ export function MessageList({ messages, pending, onRetry }: MessageListProps) {
                 {m.role === "user" ? (
                   <UserMessage message={m} onRetry={onRetry} />
                 ) : (
-                  <BotMessage message={m} />
+                  <BotMessage message={m} onRate={onRate} />
                 )}
               </MessageScrollerItem>
             ))}

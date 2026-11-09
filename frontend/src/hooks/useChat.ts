@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react"
-import { ApiError, getSession, sendChat } from "@/lib/api"
-import type { ResponseMeta } from "@/lib/api"
+import { ApiError, getSession, sendChat, sendFeedback } from "@/lib/api"
+import type { Rating, ResponseMeta } from "@/lib/api"
 import { messagesKey, readJson, writeJson } from "@/lib/storage"
 import { filenameFor } from "./useRecorder"
 import type { VoiceRecording } from "./useVoiceRecording"
@@ -190,6 +190,27 @@ export function useChat(sessionId: string, goal: string | null) {
     [deliver]
   )
 
+  /** Gửi đánh giá: cập nhật ngay (optimistic), hoàn tác và trả false nếu lỗi. */
+  const rate = useCallback(
+    async (botId: string, rating: Rating): Promise<boolean> => {
+      const msg = messagesRef.current.find((m) => m.id === botId)
+      if (!msg || msg.role !== "bot" || !msg.turnId) return false
+      if (msg.rating === rating) return true
+      const previous = msg.rating ?? null
+      const forSession = sessionRef.current
+      dispatch({ type: "rate", botId, rating })
+      try {
+        await sendFeedback(forSession, msg.turnId, rating)
+        return true
+      } catch {
+        if (sessionRef.current === forSession)
+          dispatch({ type: "rate", botId, rating: previous })
+        return false
+      }
+    },
+    []
+  )
+
   const resetMeta = useCallback(() => setLastMeta(null), [])
 
   return {
@@ -199,6 +220,7 @@ export function useChat(sessionId: string, goal: string | null) {
     send,
     sendVoice,
     retry,
+    rate,
     resetMeta,
   }
 }

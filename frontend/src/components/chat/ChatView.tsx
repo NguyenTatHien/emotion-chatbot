@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { useChat } from "@/hooks/useChat"
 import { useMeta } from "@/hooks/useMeta"
 import { useSession } from "@/hooks/useSession"
+import type { Rating } from "@/lib/api"
 import type { Goal } from "@/lib/goals"
 import { ChatHeader, type Connection } from "./ChatHeader"
 import { EmptyState } from "./EmptyState"
@@ -12,9 +13,17 @@ import { PromptBar } from "./PromptBar"
 export function ChatView() {
   const { sessionId, newSession } = useSession()
   const [goal, setGoal] = useState<Goal | null>(null)
-  const { messages, pending, lastMeta, send, sendVoice, retry, resetMeta } =
-    useChat(sessionId, goal)
-  const { meta, failed } = useMeta()
+  const {
+    messages,
+    pending,
+    lastMeta,
+    send,
+    sendVoice,
+    retry,
+    rate,
+    resetMeta,
+  } = useChat(sessionId, goal)
+  const { meta, failed, modelServer } = useMeta()
 
   const connection: Connection = failed
     ? "offline"
@@ -38,6 +47,11 @@ export function ChatView() {
     newSession()
   }
 
+  const handleRate = async (id: string, rating: Rating) => {
+    const ok = await rate(id, rating)
+    if (!ok) toast.error("Chưa gửi được đánh giá. Bạn thử lại sau nhé.")
+  }
+
   const showEmpty = messages.length === 0 && !pending
 
   return (
@@ -47,12 +61,19 @@ export function ChatView() {
         mode={lastMeta?.model_mode ?? meta?.model_mode}
         degraded={degraded}
         warnings={lastMeta?.warnings}
+        modelServer={modelServer}
+        llmBackend={lastMeta?.llm_backend}
         onNewConversation={handleNew}
       />
       {showEmpty ? (
         <EmptyState onPick={(text) => send(text)} />
       ) : (
-        <MessageList messages={messages} pending={pending} onRetry={retry} />
+        <MessageList
+          messages={messages}
+          pending={pending}
+          onRetry={retry}
+          onRate={handleRate}
+        />
       )}
       <PromptBar
         onSend={send}
