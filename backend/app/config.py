@@ -5,7 +5,7 @@ from functools import lru_cache
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.constants import MODES
+from app.constants import MODES, MODULE_NAMES
 
 
 class Settings(BaseSettings):
@@ -21,8 +21,11 @@ class Settings(BaseSettings):
     MUSIC_MODE: str | None = None
 
     MODEL_SERVER_URL: str = ""
-    LLM_BACKEND: str = "mock"
+    MODEL_SERVER_TOKEN: str = ""
     GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-3.6-flash"
+    ADMIN_TOKEN: str = ""
+    FEEDBACK_PATH: str = "data/feedback.jsonl"
     SONGS_CSV: str = "data/songs.csv"
 
     MAX_AUDIO_SECONDS: int = 30
@@ -37,6 +40,14 @@ class Settings(BaseSettings):
     MUSIC_TIMEOUT: float = 5.0
     SPEECH_TIMEOUT: float = 20.0  # transcribe
     PROSODY_TIMEOUT: float = 10.0
+    GEMINI_TIMEOUT: float = 20.0
+
+    # Timeout của từng lời gọi HTTP tới model server (giây).
+    REMOTE_TIMEOUT_EMOTION: float = 10.0
+    REMOTE_TIMEOUT_TRANSCRIBE: float = 20.0
+    REMOTE_TIMEOUT_PROSODY: float = 10.0
+    REMOTE_TIMEOUT_GENERATE: float = 30.0
+    REMOTE_TIMEOUT_HEALTH: float = 3.0
 
     SAFETY_HOTLINE_TEXT: str = ""
     MOCK_LATENCY_MS: int = 0
@@ -74,6 +85,20 @@ class Settings(BaseSettings):
 
     def module_timeout(self, name: str) -> float:
         return float(getattr(self, f"{name.upper()}_TIMEOUT"))
+
+    def validate_remote(self) -> None:
+        """Báo lỗi cấu hình rõ ràng khi khởi động nếu mode `remote` dùng sai."""
+        for name in ("safety", "music"):
+            if self.module_mode(name) == "remote":
+                raise ValueError(
+                    f"{name.upper()}_MODE=remote không được hỗ trợ: module '{name}' "
+                    "luôn chạy trong backend (mock hoặc local)."
+                )
+        remote = [n for n in MODULE_NAMES if self.module_mode(n) == "remote"]
+        if remote and not self.MODEL_SERVER_URL.strip():
+            raise ValueError(
+                f"Module {', '.join(remote)} ở mode remote nhưng MODEL_SERVER_URL đang trống."
+            )
 
     @property
     def cors_origin_list(self) -> list[str]:

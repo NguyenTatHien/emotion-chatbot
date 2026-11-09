@@ -17,6 +17,10 @@ node_modules/
 dist/
 *.log
 
+# Dữ liệu đánh giá của người dùng thử
+feedback*.jsonl
+feedback*.csv
+
 # Notebooks
 .ipynb_checkpoints/
 

@@ -47,6 +47,8 @@ class SessionTurn(BaseModel):
     emotion: Emotion | None = None
     songs: list[Song] = Field(default_factory=list)
     safety: bool = False
+    goal: str | None = None
+    llm_backend: str | None = None
     created_at: str
 
 
@@ -66,3 +68,13 @@ class MetaResponse(BaseModel):
     modules: dict[str, str]
     model_mode: str
     llm_backend: str
+
+
+class FeedbackRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=64)
+    turn_id: str = Field(min_length=1, max_length=64)
+    rating: Literal["up", "down"]
+
+
+class FeedbackResponse(BaseModel):
+    ok: bool = True

@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import registry
+from app.clients import model_server
 from app.config import reload_settings
 from app.constants import MODULE_NAMES
 from app.main import app
@@ -24,20 +25,34 @@ _ENV_KEYS = [
     "FFMPEG_BINARY",
     "SPEECH_TIMEOUT",
     "PROSODY_TIMEOUT",
+    "MODEL_SERVER_URL",
+    "MODEL_SERVER_TOKEN",
+    "GEMINI_API_KEY",
+    "GEMINI_MODEL",
+    "ADMIN_TOKEN",
+    "FEEDBACK_PATH",
+    "REMOTE_TIMEOUT_EMOTION",
+    "REMOTE_TIMEOUT_TRANSCRIBE",
+    "REMOTE_TIMEOUT_PROSODY",
+    "REMOTE_TIMEOUT_GENERATE",
     *[f"{n.upper()}_MODE" for n in MODULE_NAMES],
 ]
 
 
 @pytest.fixture(autouse=True)
-def clean_state(monkeypatch):
+def clean_state(monkeypatch, tmp_path):
     """Mỗi test bắt đầu với cấu hình mặc định, phiên rỗng và không có override."""
     for key in _ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
+    # Không bao giờ ghi vào data/feedback.jsonl thật.
+    monkeypatch.setenv("FEEDBACK_PATH", str(tmp_path / "feedback.jsonl"))
     reload_settings()
     store.clear()
     registry.reset_overrides()
+    model_server.reset_state()
     yield
     registry.reset_overrides()
+    model_server.reset_state()
     store.clear()
     monkeypatch.undo()
     reload_settings()

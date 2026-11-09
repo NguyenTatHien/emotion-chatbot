@@ -1,6 +1,7 @@
 """Bộ điều phối một lượt chat: an toàn -> cảm xúc -> (llm || nhạc) -> lưu phiên."""
 
 import asyncio
+import inspect
 import logging
 import time
 import uuid
@@ -9,7 +10,7 @@ from datetime import UTC, datetime
 
 from pydantic import ValidationError
 
-from app import fallbacks, registry
+from app import fallbacks, gemini, registry
 from app.config import get_settings
 from app.constants import AROUSAL_LEVELS, LABELS, MODULE_NAMES
 from app.schemas import ChatResponse, Emotion, Meta, SessionTurn, Song
@@ -25,13 +26,16 @@ class NoUsableInput(Exception):
 async def try_call(
     name: str, fn: Callable, *args, timeout: float, **kwargs
 ) -> tuple[object | None, str | None]:
-    """Chạy hàm sync trong threadpool với timeout.
+    """Chạy hàm với timeout: hàm async được await trực tiếp, hàm sync chạy trong threadpool.
 
     Trả (kết quả, None) nếu thành công hoặc (None, cảnh báo) nếu lỗi/quá thời gian.
     Thread bị timeout vẫn chạy nốt ở nền (không thể giết thread) — chấp nhận cho demo.
     """
     try:
-        result = await asyncio.wait_for(asyncio.to_thread(fn, *args, **kwargs), timeout)
+        if inspect.iscoroutinefunction(fn):
+            result = await asyncio.wait_for(fn(*args, **kwargs), timeout)
+        else:
+            result = await asyncio.wait_for(asyncio.to_thread(fn, *args, **kwargs), timeout)
         return result, None
     except TimeoutError:
         logger.warning("Module %s quá thời gian (%.1fs)", name, timeout)
@@ -62,6 +66,53 @@ def _valid_songs(result: object) -> list[Song] | None:
         return [Song(**item) for item in result]
     except (ValidationError, TypeError):
         return None
+
+
+async def generate_with_fallback(
+    text: str,
+    emotion: dict,
+    arousal: str | None,
+    history: list[dict],
+    goal: str | None,
+) -> tuple[str, str, list[str]]:
+    """Sinh câu trả lời: implementation llm đang chọn -> Gemini (nếu có khoá) -> soạn sẵn.
+
+    Trả (reply, nguồn thực tế, cảnh báo). Nguồn: mock | qwen | gemini | canned.
+    """
+    settings = get_settings()
+    warnings: list[str] = []
+
+    result, warn = await try_call(
+        "llm",
+        registry.get("llm"),
+        text,
+        emotion,
+        arousal,
+        history,
+        goal,
+        timeout=settings.module_timeout("llm"),
+    )
+    if warn is None and isinstance(result, str) and result.strip():
+        backend = "mock" if registry.mode_of("llm") == "mock" else "qwen"
+        return result.strip(), backend, warnings
+    warnings.append(warn or "llm: kết quả rỗng, dùng dự phòng")
+
+    if settings.GEMINI_API_KEY.strip():
+        result, warn = await try_call(
+            "gemini",
+            gemini.generate_reply,
+            text,
+            emotion,
+            arousal,
+            history,
+            goal,
+            timeout=settings.GEMINI_TIMEOUT,
+        )
+        if warn is None and isinstance(result, str) and result.strip():
+            return result.strip(), "gemini", warnings
+        warnings.append(warn or "gemini: kết quả rỗng, dùng câu trả lời soạn sẵn")
+
+    return fallbacks.canned_reply(emotion["label"]), "canned", warnings
 
 
 async def handle_chat(
@@ -141,6 +192,7 @@ async def handle_chat(
     emotion_dict: dict | None = None
     songs: list[Song] = []
 
+    llm_backend = "canned"
     if risk:
         reply = (safety_msg or "").strip() or fallbacks.safety_message()
     else:
@@ -155,17 +207,8 @@ async def handle_chat(
 
         # Bước 4: llm || music chạy đồng thời.
         label = emotion_dict["label"]
-        (llm_res, llm_warn), (music_res, music_warn) = await asyncio.gather(
-            try_call(
-                "llm",
-                registry.get("llm"),
-                text,
-                emotion_dict,
-                arousal,
-                history,
-                goal,
-                timeout=settings.module_timeout("llm"),
-            ),
+        (reply_info, (music_res, music_warn)) = await asyncio.gather(
+            generate_with_fallback(text, emotion_dict, arousal, history, goal),
             try_call(
                 "music",
                 registry.get("music"),
@@ -176,11 +219,8 @@ async def handle_chat(
                 timeout=settings.module_timeout("music"),
             ),
         )
-        if llm_warn is None and isinstance(llm_res, str) and llm_res.strip():
-            reply = llm_res.strip()
-        else:
-            warnings.append(llm_warn or "llm: kết quả rỗng, dùng câu trả lời soạn sẵn")
-            reply = fallbacks.canned_reply(label)
+        reply, llm_backend, llm_warnings = reply_info
+        warnings.extend(llm_warnings)
 
         parsed = _valid_songs(music_res) if music_warn is None else None
         if parsed is None:
@@ -204,12 +244,14 @@ async def handle_chat(
             emotion=emotion,
             songs=songs,
             safety=risk,
+            goal=goal,
+            llm_backend=llm_backend,
             created_at=datetime.now(UTC).isoformat(),
         ),
     )
 
     meta = Meta(
-        llm_backend=settings.LLM_BACKEND,
+        llm_backend=llm_backend,
         model_mode=settings.MODEL_MODE,
         modules={name: registry.mode_of(name) for name in MODULE_NAMES},
         degraded=bool(warnings),

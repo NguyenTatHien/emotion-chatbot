@@ -28,8 +28,12 @@ VALID_FUNCS = {
 _overrides: dict[tuple[str, str], Callable] = {}
 
 
+# Hàm remote có sẵn trong client model server (safety và music luôn chạy trong backend).
+REMOTE_FUNCS = {"emotion", "speech", "llm"}
+
+
 class RemoteNotConfigured(RuntimeError):
-    """Mode `remote` chưa được hỗ trợ (sẽ có ở change integrate-model-server)."""
+    """Module ở mode `remote` nhưng không có client tương ứng (safety, music)."""
 
 
 def _resolve_func(name: str, func: str | None) -> str:
@@ -53,13 +57,11 @@ def get(name: str, func: str | None = None) -> Callable:
 
     mode = mode_of(name)
     if mode == "remote":
+        if name not in REMOTE_FUNCS:
+            raise RemoteNotConfigured(f"Module '{name}' không hỗ trợ mode remote")
+        from app.clients import model_server
 
-        def _remote(*args, **kwargs):
-            raise RemoteNotConfigured(
-                f"Module '{name}' ở mode remote nhưng chưa có client model server"
-            )
-
-        return _remote
+        return getattr(model_server, func)
 
     package = "mocks" if mode == "mock" else "modules"
     module = importlib.import_module(f"{package}.{name}")

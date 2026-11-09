@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 import pytest
@@ -32,10 +33,19 @@ def test_invalid_mode_rejected():
         Settings(EMOTION_MODE="gpu")
 
 
-def test_remote_callable_raises(set_env):
-    set_env(LLM_MODE="remote")
-    with pytest.raises(registry.RemoteNotConfigured):
-        registry.get("llm")("x", {}, None, [])
+def test_remote_modules_use_model_server_client(set_env):
+    set_env(MODEL_MODE="mock", EMOTION_MODE="remote", LLM_MODE="remote", SPEECH_MODE="remote")
+    assert registry.get("emotion").__module__ == "app.clients.model_server"
+    assert registry.get("llm").__module__ == "app.clients.model_server"
+    assert registry.get("speech", "transcribe").__name__ == "transcribe"
+    assert registry.get("speech", "extract_prosody").__name__ == "extract_prosody"
+
+
+def test_remote_not_available_for_safety_and_music(set_env):
+    set_env(SAFETY_MODE="remote", MUSIC_MODE="remote")
+    for name in ("safety", "music"):
+        with pytest.raises(registry.RemoteNotConfigured):
+            registry.get(name)
 
 
 def test_override_and_reset():
@@ -130,3 +140,15 @@ async def test_session_store_limits():
     await store.append_turn("c", turn(0))  # đẩy phiên cũ nhất ("a") ra
     assert await store.get_turns("a") == []
     assert len(await store.get_turns("b")) == 1
+
+
+async def test_try_call_supports_async_functions():
+    async def fine(x):
+        return x * 2
+
+    async def slow():
+        await asyncio.sleep(0.5)
+
+    assert await try_call("emotion", fine, 2, timeout=1) == (4, None)
+    res, warn = await try_call("emotion", slow, timeout=0.05)
+    assert res is None and "quá thời gian" in warn

@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app import registry
+from app.clients import model_server
 from app.config import get_settings
 from app.constants import GOALS, LABELS, MODULE_NAMES
 from app.schemas import HealthResponse, MetaResponse, SessionResponse
@@ -14,8 +15,9 @@ router = APIRouter()
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     uses_remote = any(registry.mode_of(n) == "remote" for n in MODULE_NAMES)
-    # Change integrate-model-server sẽ ping model server thật; hiện chưa có client.
-    return HealthResponse(ok=True, model_server="down" if uses_remote else "n/a")
+    if not uses_remote:
+        return HealthResponse(ok=True, model_server="n/a")
+    return HealthResponse(ok=True, model_server=await model_server.cached_health())
 
 
 @router.get("/meta", response_model=MetaResponse)
@@ -26,7 +28,7 @@ async def meta() -> MetaResponse:
         goals=GOALS,
         modules={n: registry.mode_of(n) for n in MODULE_NAMES},
         model_mode=settings.MODEL_MODE,
-        llm_backend=settings.LLM_BACKEND,
+        llm_backend="mock" if registry.mode_of("llm") == "mock" else "qwen",
     )
 
 

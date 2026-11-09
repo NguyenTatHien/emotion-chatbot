@@ -22,7 +22,8 @@ def test_session_keeps_order(client):
     assert [t["user_text"] for t in body["turns"]] == ["một", "hai"]
     turn = body["turns"][0]
     assert set(turn) == {
-        "turn_id", "user_text", "transcript", "reply", "emotion", "songs", "safety", "created_at",
+        "turn_id", "user_text", "transcript", "reply", "emotion", "songs", "safety", "goal",
+        "llm_backend", "created_at",
     }
 
 

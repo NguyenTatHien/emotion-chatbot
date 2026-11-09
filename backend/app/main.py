@@ -1,15 +1,27 @@
 """Ứng dụng FastAPI. Chạy: cd backend && uvicorn app.main:app --reload --workers 1"""
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.clients import model_server
 from app.config import get_settings
 from app.constants import MODULE_NAMES
-from app.routes import chat, system
+from app.routes import chat, feedback, system
 
 logger = logging.getLogger("emotion_chatbot")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    get_settings().validate_remote()
+    await model_server.startup()
+    try:
+        yield
+    finally:
+        await model_server.shutdown()
 
 
 def create_app() -> FastAPI:
@@ -17,8 +29,9 @@ def create_app() -> FastAPI:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
     settings = get_settings()  # lỗi cấu hình (mode sai) sẽ dừng ứng dụng ngay tại đây
+    settings.validate_remote()
 
-    app = FastAPI(title="Emotion Chatbot API", version="0.1.0")
+    app = FastAPI(title="Emotion Chatbot API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
@@ -27,6 +40,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(chat.router, prefix="/api")
     app.include_router(system.router, prefix="/api")
+    app.include_router(feedback.router, prefix="/api")
 
     modes = {name: settings.module_mode(name) for name in MODULE_NAMES}
     logger.info("Chế độ module: %s", modes)
