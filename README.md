@@ -104,6 +104,15 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 | `MOCK_LATENCY_MS` | `0` | Giả độ trễ cho mock |
 | `SAFETY_HOTLINE_TEXT` | trống | Dòng hỗ trợ thêm vào thông điệp an toàn |
 
+| `MAX_AUDIO_SECONDS`, `MAX_AUDIO_MB` | `30`, `5` | Giới hạn bản ghi; vượt thì trả HTTP 413 |
+| `FFMPEG_BINARY` | `ffmpeg` | Tên hoặc đường dẫn ffmpeg dùng để chuẩn hoá audio |
+
+### Giọng nói
+
+- **Cần ffmpeg** khi chạy backend không dùng Docker: backend chuẩn hoá mọi định dạng trình duyệt gửi (webm/opus, ogg, mp4/aac, wav) sang WAV 16 kHz mono trước khi gọi `speech.py`. Cài ffmpeg (`winget install ffmpeg`, `brew install ffmpeg` hoặc `apt install ffmpeg`) rồi đảm bảo có trên `PATH`, hoặc đặt `FFMPEG_BINARY`. Nếu không thấy, backend thử gói `imageio-ffmpeg` (chỉ có trong `requirements-dev.txt`, dùng cho test/dev); vẫn không có thì bước speech được coi là lỗi và hệ thống dùng chữ nhận dạng sẵn từ trình duyệt (`transcript_hint`), không trả 500. Image Docker (change sau) phải cài ffmpeg bằng apt.
+- Mã lỗi: `413` khi file quá `MAX_AUDIO_MB` hoặc dài hơn `MAX_AUDIO_SECONDS` + 1 giây, `415` khi ffmpeg không giải mã được, `400` khi không nhận dạng được chữ nào và không có `message`/`transcript_hint`.
+- Test tự sinh audio mẫu bằng ffmpeg, không commit file nhị phân.
+
 Danh sách đầy đủ kèm chú thích: `backend/.env.example`. Hướng dẫn cắm module thật: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Chạy frontend
@@ -128,7 +137,9 @@ Ghi chú kỹ thuật:
 - Không dùng Vercel AI SDK; state chat tự quản bằng `useReducer` (`src/hooks/chat-state.ts`, `useChat.ts`). Gọi API bằng `fetch` với đường dẫn tương đối `/api`.
 - Font Be Vietnam Pro tự host qua `@fontsource` (không gọi Google Fonts). Màu chủ đạo violet-600; 7 màu cảm xúc là biến CSS `--emo-*` trong `src/index.css` (light/dark).
 - Phiên: `session_id` và tin nhắn lưu trong localStorage (`ec.session_id`, `ec.messages.<id>`); nếu localStorage trống thì khôi phục từ `GET /api/session/{id}`.
-- Chỗ chừa cho nút ghi âm: prop `voiceSlot` của `PromptBar` (change `add-voice-input`).
+- Ghi âm: `useRecorder` (MediaRecorder, tự chọn `audio/webm;codecs=opus` > `audio/ogg;codecs=opus` > `audio/mp4`, tự dừng ở 30 giây), `useSpeechFallback` (Web Speech API `vi-VN`, chạy song song để hiện chữ trực tiếp và gửi `transcript_hint`), `RecordingBar`, `VoiceBubble`. Bản ghi để phát lại chỉ nằm trong RAM của tab (object URL, thu hồi khi bắt đầu cuộc trò chuyện mới) và không lưu vào localStorage.
+- **Ghi âm cần `localhost` hoặc HTTPS** (secure context); mở bằng địa chỉ IP qua HTTP thì trình duyệt chặn micro và giao diện hiện thông báo, ô gõ chữ vẫn dùng bình thường.
+- **Quyền riêng tư**: Web Speech API trên Chrome/Edge gửi âm thanh tới dịch vụ nhận dạng của hãng trình duyệt (Google/Microsoft). Nó chỉ là dự phòng hiển thị chữ trực tiếp; nguồn chính là PhoWhisper chạy ở backend của nhóm. Hãy nói rõ điều này với người dùng khi demo.
 
 ## Giới hạn
 
