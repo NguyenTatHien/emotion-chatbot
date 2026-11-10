@@ -25,7 +25,7 @@ export function BotMessage({ message, onRate }: BotMessageProps) {
           <SafetyAlert text={text} />
         ) : (
           <Bubble variant="ghost">
-            <BubbleContent className="text-base whitespace-pre-wrap">
+            <BubbleContent className="max-w-[72ch] text-base leading-relaxed whitespace-pre-wrap lg:text-[17px]">
               {text}
             </BubbleContent>
           </Bubble>

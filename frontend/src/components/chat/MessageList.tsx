@@ -20,7 +20,12 @@ interface MessageListProps {
   onRate?: (id: string, rating: Rating) => void
 }
 
-export function MessageList({ messages, pending, onRetry, onRate }: MessageListProps) {
+export function MessageList({
+  messages,
+  pending,
+  onRetry,
+  onRate,
+}: MessageListProps) {
   return (
     <MessageScrollerProvider defaultScrollPosition="end">
       <MessageScroller className="flex-1">
@@ -30,7 +35,7 @@ export function MessageList({ messages, pending, onRetry, onRate }: MessageListP
             aria-label="Cuộc trò chuyện"
             role="log"
             aria-live="polite"
-            className="gap-5 px-4 py-4"
+            className="mx-auto w-full max-w-5xl gap-6 px-4 py-6 sm:px-6 lg:px-10"
           >
             {messages.map((m) => (
               <MessageScrollerItem

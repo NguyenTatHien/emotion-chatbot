@@ -23,7 +23,10 @@ export function SongCard({ song }: { song: Song }) {
   const openUrl = id ? watchUrl(id) : song.youtube_url
 
   const media = (
-    <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-xl">
+    <AspectRatio
+      ratio={16 / 9}
+      className="overflow-hidden rounded-xl bg-linear-to-br from-[color-mix(in_oklch,var(--mood)_65%,var(--card))] to-[color-mix(in_oklch,var(--aurora-accent)_45%,var(--card))]"
+    >
       {id && playing ? (
         <iframe
           src={embedUrl(id)}
@@ -66,7 +69,7 @@ export function SongCard({ song }: { song: Song }) {
 
   return (
     <article
-      className="group/song flex w-60 shrink-0 snap-start flex-col gap-2 rounded-2xl border border-border/70 bg-card/80 p-2 text-card-foreground shadow-sm backdrop-blur transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-md hover:shadow-primary/10"
+      className="group/song flex w-60 shrink-0 snap-start flex-col gap-2 rounded-2xl border border-border/70 bg-card/80 p-2 text-card-foreground shadow-sm backdrop-blur transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-md hover:shadow-primary/10 md:w-full"
       aria-label={`${song.title} - ${song.artist}`}
     >
       {id && playing ? (

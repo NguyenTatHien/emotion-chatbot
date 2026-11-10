@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { App } from "@/App"
@@ -130,7 +130,9 @@ describe("ghi âm trong ChatView", () => {
     expect(form.has("message")).toBe(false)
 
     // Bong bóng: transcript của server, thời lượng 0:08, nút phát lại.
-    expect(screen.getByText("hôm nay mệt quá")).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("log")).getByText("hôm nay mệt quá")
+    ).toBeInTheDocument()
     expect(screen.getByText("0:08")).toBeInTheDocument()
     expect(
       screen.getByRole("button", { name: "Phát lại bản ghi" })
@@ -152,9 +154,11 @@ describe("ghi âm trong ChatView", () => {
     speech[0].emit([["mình hơi lo", true]])
     media.advanceClock(3000)
     await user.click(screen.getByRole("button", { name: "Gửi ghi âm" }))
-    expect(await screen.findByText("mình hơi lo")).toBeInTheDocument()
+    expect(
+      await within(await screen.findByRole("log")).findByText("mình hơi lo")
+    ).toBeInTheDocument()
     release(Response.json(voiceResponse({ transcript: "mình hơi lo lắng" })))
-    expect(await screen.findByText("mình hơi lo lắng")).toBeInTheDocument()
+    expect(await within(screen.getByRole("log")).findByText("mình hơi lo lắng")).toBeInTheDocument()
   })
 
   it("trình duyệt không có Web Speech: vẫn ghi và gửi, không có transcript_hint", async () => {
@@ -283,7 +287,9 @@ describe("ghi âm trong ChatView", () => {
     first.unmount()
 
     render(<App />)
-    expect(screen.getByText("hôm nay mệt quá")).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("log")).getByText("hôm nay mệt quá")
+    ).toBeInTheDocument()
     expect(
       screen.getByRole("img", { name: "Tin giọng nói" })
     ).toBeInTheDocument()

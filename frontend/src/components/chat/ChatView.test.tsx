@@ -5,7 +5,15 @@ import { App } from "@/App"
 import type { ChatResponse } from "@/lib/api"
 
 const META = {
-  labels: ["Anger", "Disgust", "Enjoyment", "Fear", "Other", "Sadness", "Surprise"],
+  labels: [
+    "Anger",
+    "Disgust",
+    "Enjoyment",
+    "Fear",
+    "Other",
+    "Sadness",
+    "Surprise",
+  ],
   goals: ["xoa_diu", "nang_mood", "tap_trung", "giai_toa"],
   modules: {},
   model_mode: "mock",
@@ -55,7 +63,8 @@ type ChatHandler = (form: FormData) => Response | Promise<Response>
 function installFetch(chat: ChatHandler) {
   const fn = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === "/api/meta") return Response.json(META)
-    if (url.startsWith("/api/session/")) return Response.json({ session_id: "x", turns: [] })
+    if (url.startsWith("/api/session/"))
+      return Response.json({ session_id: "x", turns: [] })
     if (url === "/api/chat") return chat(init?.body as FormData)
     return new Response("not found", { status: 404 })
   })
@@ -88,10 +97,12 @@ describe("ChatView", () => {
 
     expect(input).toHaveValue("")
     await screen.findByText("Nghe có vẻ bạn đang buồn.")
-    expect(screen.getByText("hôm nay mệt quá")).toBeInTheDocument()
-    expect(await screen.findByRole("button", { name: /Cảm xúc Buồn 62%/ })).toHaveTextContent(
-      "Buồn 62%"
-    )
+    expect(
+      within(screen.getByRole("log")).getByText("hôm nay mệt quá")
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole("button", { name: /Cảm xúc Buồn 62%/ })
+    ).toHaveTextContent("Buồn 62%")
     expect(screen.getByText("kích động thấp")).toBeInTheDocument()
 
     const calls = chatCalls(fetchMock)
@@ -126,8 +137,12 @@ describe("ChatView", () => {
     const user = userEvent.setup()
     render(<App />)
     await user.type(screen.getByLabelText("Nhập tin nhắn"), "buồn{Enter}")
-    await user.click(await screen.findByRole("button", { name: /Cảm xúc Buồn/ }))
-    const list = await screen.findByRole("list", { name: "Xác suất từng cảm xúc" })
+    await user.click(
+      await screen.findByRole("button", { name: /Cảm xúc Buồn/ })
+    )
+    const list = await screen.findByRole("list", {
+      name: "Xác suất từng cảm xúc",
+    })
     const rows = within(list).getAllByRole("listitem")
     expect(rows).toHaveLength(7)
     expect(rows[0]).toHaveTextContent("Buồn")
@@ -147,10 +162,15 @@ describe("ChatView", () => {
     )
     const user = userEvent.setup()
     render(<App />)
-    await user.type(screen.getByLabelText("Nhập tin nhắn"), "mình muốn chết{Enter}")
+    await user.type(
+      screen.getByLabelText("Nhập tin nhắn"),
+      "mình muốn chết{Enter}"
+    )
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent("Mình rất lo cho bạn")
-    expect(screen.queryByRole("button", { name: /Cảm xúc/ })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /Cảm xúc/ })
+    ).not.toBeInTheDocument()
     expect(screen.queryByText("Bài thử")).not.toBeInTheDocument()
   })
 
@@ -162,16 +182,20 @@ describe("ChatView", () => {
     const play = await screen.findByRole("button", { name: "Nghe bài Bài thử" })
     expect(container.querySelector("iframe")).toBeNull()
     const thumb = screen.getByAltText("Ảnh bìa bài Bài thử")
-    expect(thumb).toHaveAttribute("src", "https://i.ytimg.com/vi/abc123/mqdefault.jpg")
+    expect(thumb).toHaveAttribute(
+      "src",
+      "https://i.ytimg.com/vi/abc123/mqdefault.jpg"
+    )
     expect(thumb).toHaveAttribute("loading", "lazy")
     await user.click(play)
     const iframe = container.querySelector("iframe")
     expect(iframe).not.toBeNull()
-    expect(iframe?.getAttribute("src")).toContain("https://www.youtube-nocookie.com/embed/abc123")
-    expect(screen.getByRole("link", { name: /Mở trên YouTube/ })).toHaveAttribute(
-      "href",
-      "https://www.youtube.com/watch?v=abc123"
+    expect(iframe?.getAttribute("src")).toContain(
+      "https://www.youtube-nocookie.com/embed/abc123"
     )
+    expect(
+      screen.getByRole("link", { name: /Mở trên YouTube/ })
+    ).toHaveAttribute("href", "https://www.youtube.com/watch?v=abc123")
   })
 
   it("lỗi mạng hiện Thử lại; thử lại thành công thêm câu trả lời", async () => {
@@ -184,19 +208,27 @@ describe("ChatView", () => {
     render(<App />)
     await user.type(screen.getByLabelText("Nhập tin nhắn"), "xin chào{Enter}")
     const retry = await screen.findByRole("button", { name: /Thử lại/ })
-    expect(screen.queryByText("Nghe có vẻ bạn đang buồn.")).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("Nghe có vẻ bạn đang buồn.")
+    ).not.toBeInTheDocument()
     fail = false
     await user.click(retry)
     await screen.findByText("Nghe có vẻ bạn đang buồn.")
-    expect(screen.queryByRole("button", { name: /Thử lại/ })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /Thử lại/ })
+    ).not.toBeInTheDocument()
   })
 
   it("HTTP 400 cũng là lỗi có Thử lại", async () => {
-    installFetch(() => Response.json({ detail: "Tin nhắn quá dài" }, { status: 400 }))
+    installFetch(() =>
+      Response.json({ detail: "Tin nhắn quá dài" }, { status: 400 })
+    )
     const user = userEvent.setup()
     render(<App />)
     await user.type(screen.getByLabelText("Nhập tin nhắn"), "xin chào{Enter}")
-    expect(await screen.findByRole("button", { name: /Thử lại/ })).toBeInTheDocument()
+    expect(
+      await screen.findByRole("button", { name: /Thử lại/ })
+    ).toBeInTheDocument()
     expect(screen.getByText(/Tin nhắn quá dài/)).toBeInTheDocument()
   })
 
@@ -204,7 +236,9 @@ describe("ChatView", () => {
     const fetchMock = installFetch(() => Response.json(chatResponse()))
     const user = userEvent.setup()
     render(<App />)
-    await user.click(screen.getByRole("button", { name: "Hôm nay mình thấy mệt quá" }))
+    await user.click(
+      screen.getByRole("button", { name: "Hôm nay mình thấy mệt quá" })
+    )
     await waitFor(() => expect(chatCalls(fetchMock)).toHaveLength(1))
     expect((chatCalls(fetchMock)[0][1]?.body as FormData).get("message")).toBe(
       "Hôm nay mình thấy mệt quá"
@@ -220,13 +254,17 @@ describe("ChatView", () => {
     expect(focus).toBeChecked()
     await user.type(screen.getByLabelText("Nhập tin nhắn"), "một{Enter}")
     await screen.findByText("Nghe có vẻ bạn đang buồn.")
-    expect((chatCalls(fetchMock)[0][1]?.body as FormData).get("goal")).toBe("tap_trung")
+    expect((chatCalls(fetchMock)[0][1]?.body as FormData).get("goal")).toBe(
+      "tap_trung"
+    )
 
     await user.click(focus)
     expect(focus).not.toBeChecked()
     await user.type(screen.getByLabelText("Nhập tin nhắn"), "hai{Enter}")
     await waitFor(() => expect(chatCalls(fetchMock)).toHaveLength(2))
-    expect((chatCalls(fetchMock)[1][1]?.body as FormData).has("goal")).toBe(false)
+    expect((chatCalls(fetchMock)[1][1]?.body as FormData).has("goal")).toBe(
+      false
+    )
   })
 
   it("khôi phục lịch sử từ localStorage sau khi tải lại", async () => {
@@ -238,10 +276,16 @@ describe("ChatView", () => {
     first.unmount()
 
     render(<App />)
-    expect(screen.getByText("lượt một")).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("log")).getByText("lượt một")
+    ).toBeInTheDocument()
     expect(screen.getByText("Nghe có vẻ bạn đang buồn.")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Cảm xúc Buồn 62%/ })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Nghe bài Bài thử" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: /Cảm xúc Buồn 62%/ })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Nghe bài Bài thử" })
+    ).toBeInTheDocument()
   })
 
   it("khôi phục từ GET /api/session khi localStorage trống", async () => {
@@ -266,7 +310,11 @@ describe("ChatView", () => {
     })
     vi.stubGlobal("fetch", fn)
     render(<App />)
-    expect(await screen.findByText("câu cũ từ server")).toBeInTheDocument()
+    expect(
+      await within(await screen.findByRole("log")).findByText(
+        "câu cũ từ server"
+      )
+    ).toBeInTheDocument()
     expect(screen.getByText("trả lời cũ")).toBeInTheDocument()
   })
 
@@ -276,17 +324,25 @@ describe("ChatView", () => {
     render(<App />)
     await user.type(screen.getByLabelText("Nhập tin nhắn"), "một{Enter}")
     await screen.findByText("Nghe có vẻ bạn đang buồn.")
-    const oldId = (chatCalls(fetchMock)[0][1]?.body as FormData).get("session_id")
+    const oldId = (chatCalls(fetchMock)[0][1]?.body as FormData).get(
+      "session_id"
+    )
 
-    await user.click(screen.getByRole("button", { name: "Cuộc trò chuyện mới" }))
-    expect(screen.queryByText("Nghe có vẻ bạn đang buồn.")).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole("button", { name: "Cuộc trò chuyện mới" })
+    )
+    expect(
+      screen.queryByText("Nghe có vẻ bạn đang buồn.")
+    ).not.toBeInTheDocument()
     expect(
       screen.getByRole("heading", { name: "Chào bạn, mình ở đây để lắng nghe" })
     ).toBeInTheDocument()
 
     await user.type(screen.getByLabelText("Nhập tin nhắn"), "hai{Enter}")
     await waitFor(() => expect(chatCalls(fetchMock)).toHaveLength(2))
-    const newId = (chatCalls(fetchMock)[1][1]?.body as FormData).get("session_id")
+    const newId = (chatCalls(fetchMock)[1][1]?.body as FormData).get(
+      "session_id"
+    )
     expect(newId).not.toBe(oldId)
   })
 
@@ -308,7 +364,9 @@ describe("ChatView", () => {
     const badge = await screen.findByRole("button", { name: /chế độ dự phòng/ })
     expect(badge).toHaveTextContent("Dự phòng")
     await user.hover(badge)
-    expect((await screen.findAllByText("emotion: timeout")).length).toBeGreaterThan(0)
+    expect(
+      (await screen.findAllByText("emotion: timeout")).length
+    ).toBeGreaterThan(0)
   })
 
   it("aria-busy bật khi đang chờ phản hồi", async () => {

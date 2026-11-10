@@ -1,6 +1,7 @@
 /** Mọi truy cập localStorage đều bọc try/catch: trang vẫn chạy khi bị chặn lưu trữ. */
 
 export const SESSION_KEY = "ec.session_id"
+export const CONVERSATIONS_KEY = "ec.conversations"
 export const messagesKey = (sessionId: string) => `ec.messages.${sessionId}`
 
 export function readItem(key: string): string | null {

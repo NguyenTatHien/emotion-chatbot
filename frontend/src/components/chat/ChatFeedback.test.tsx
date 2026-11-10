@@ -5,7 +5,15 @@ import { App } from "@/App"
 import type { ChatResponse } from "@/lib/api"
 
 const META = {
-  labels: ["Anger", "Disgust", "Enjoyment", "Fear", "Other", "Sadness", "Surprise"],
+  labels: [
+    "Anger",
+    "Disgust",
+    "Enjoyment",
+    "Fear",
+    "Other",
+    "Sadness",
+    "Surprise",
+  ],
   goals: ["xoa_diu", "nang_mood", "tap_trung", "giai_toa"],
   modules: {},
   model_mode: "remote",
@@ -16,7 +24,11 @@ function chatResponse(over: Partial<ChatResponse> = {}): ChatResponse {
   return {
     turn_id: "turn-1",
     reply: "Mình ở đây lắng nghe bạn.",
-    emotion: { label: "Sadness", probs: { Sadness: 0.7, Other: 0.3 }, arousal: "low" },
+    emotion: {
+      label: "Sadness",
+      probs: { Sadness: 0.7, Other: 0.3 },
+      arousal: "low",
+    },
     songs: [],
     safety: false,
     meta: {
@@ -31,7 +43,9 @@ function chatResponse(over: Partial<ChatResponse> = {}): ChatResponse {
   }
 }
 
-type FeedbackHandler = (body: Record<string, string>) => Response | Promise<Response>
+type FeedbackHandler = (
+  body: Record<string, string>
+) => Response | Promise<Response>
 
 function installFetch(opts: {
   chat?: ChatResponse
@@ -42,10 +56,13 @@ function installFetch(opts: {
     if (url === "/api/meta") return Response.json(META)
     if (url === "/api/health")
       return Response.json({ ok: true, model_server: opts.health ?? "n/a" })
-    if (url.startsWith("/api/session/")) return Response.json({ session_id: "x", turns: [] })
+    if (url.startsWith("/api/session/"))
+      return Response.json({ session_id: "x", turns: [] })
     if (url === "/api/chat") return Response.json(opts.chat ?? chatResponse())
     if (url === "/api/feedback")
-      return opts.feedback!(JSON.parse(init?.body as string) as Record<string, string>)
+      return opts.feedback!(
+        JSON.parse(init?.body as string) as Record<string, string>
+      )
     return new Response("not found", { status: 404 })
   })
   vi.stubGlobal("fetch", fn)
@@ -74,7 +91,9 @@ async function sendOne(user: ReturnType<typeof userEvent.setup>) {
 
 describe("Nút đánh giá", () => {
   it("bấm Hữu ích gửi đúng nội dung và giữ aria-pressed", async () => {
-    const fetchMock = installFetch({ feedback: () => Response.json({ ok: true }) })
+    const fetchMock = installFetch({
+      feedback: () => Response.json({ ok: true }),
+    })
     const user = userEvent.setup()
     await sendOne(user)
 
@@ -94,7 +113,9 @@ describe("Nút đánh giá", () => {
   })
 
   it("đổi đánh giá gửi hai request và nút Chưa hợp được nhấn", async () => {
-    const fetchMock = installFetch({ feedback: () => Response.json({ ok: true }) })
+    const fetchMock = installFetch({
+      feedback: () => Response.json({ ok: true }),
+    })
     const user = userEvent.setup()
     await sendOne(user)
     await user.click(screen.getByRole("button", { name: "Hữu ích" }))
@@ -112,7 +133,9 @@ describe("Nút đánh giá", () => {
   })
 
   it("bấm lại nút đang chọn không gửi thêm", async () => {
-    const fetchMock = installFetch({ feedback: () => Response.json({ ok: true }) })
+    const fetchMock = installFetch({
+      feedback: () => Response.json({ ok: true }),
+    })
     const user = userEvent.setup()
     await sendOne(user)
     await user.click(screen.getByRole("button", { name: "Hữu ích" }))
@@ -133,7 +156,9 @@ describe("Nút đánh giá", () => {
 
     release(Response.json({ detail: "lỗi" }, { status: 500 }))
     await waitFor(() => expect(up).toHaveAttribute("aria-pressed", "false"))
-    expect(await screen.findByText(/Chưa gửi được đánh giá/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/Chưa gửi được đánh giá/)
+    ).toBeInTheDocument()
   })
 
   it("lỗi mạng cũng hoàn tác về lựa chọn trước đó", async () => {
@@ -163,27 +188,45 @@ describe("Nút đánh giá", () => {
 
   it("lượt an toàn không có nút đánh giá", async () => {
     installFetch({
-      chat: chatResponse({ safety: true, emotion: null, reply: "Mình rất lo cho bạn." }),
+      chat: chatResponse({
+        safety: true,
+        emotion: null,
+        reply: "Mình rất lo cho bạn.",
+      }),
       feedback: () => Response.json({ ok: true }),
     })
     const user = userEvent.setup()
     render(<App />)
-    await user.type(screen.getByLabelText("Nhập tin nhắn"), "mình muốn chết{Enter}")
+    await user.type(
+      screen.getByLabelText("Nhập tin nhắn"),
+      "mình muốn chết{Enter}"
+    )
     await screen.findByRole("alert")
-    expect(screen.queryByRole("button", { name: "Hữu ích" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Chưa hợp" })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Hữu ích" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Chưa hợp" })
+    ).not.toBeInTheDocument()
   })
 })
 
 describe("Trạng thái máy chủ", () => {
   it("hiện nguồn trả lời của lượt gần nhất và trạng thái model server", async () => {
-    installFetch({ health: "down", feedback: () => Response.json({ ok: true }) })
+    installFetch({
+      health: "down",
+      feedback: () => Response.json({ ok: true }),
+    })
     const user = userEvent.setup()
     await sendOne(user)
     expect(
-      await screen.findByRole("status", { name: "Máy chủ mô hình đang ngắt kết nối" })
+      await screen.findByRole("status", {
+        name: "Máy chủ mô hình đang ngắt kết nối",
+      })
     ).toBeInTheDocument()
-    expect(screen.getByLabelText("Nguồn trả lời gần nhất: Gemini")).toBeInTheDocument()
+    expect(
+      screen.getByLabelText("Nguồn trả lời gần nhất: Gemini")
+    ).toBeInTheDocument()
   })
 
   it("model server sống hiện huy hiệu hoạt động", async () => {
@@ -198,6 +241,8 @@ describe("Trạng thái máy chủ", () => {
     installFetch({ health: "n/a" })
     render(<App />)
     await screen.findByText("Đang hoạt động")
-    expect(screen.queryByRole("status", { name: /Máy chủ mô hình/ })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("status", { name: /Máy chủ mô hình/ })
+    ).not.toBeInTheDocument()
   })
 })

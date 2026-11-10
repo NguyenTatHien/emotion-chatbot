@@ -20,11 +20,14 @@ export function UserMessage({ message, onRetry }: UserMessageProps) {
         <Bubble
           align="end"
           variant={message.status === "error" ? "destructive" : "default"}
-          className={message.status === "sending" ? "opacity-80" : undefined}
+          className={
+            "lg:max-w-[min(70%,44rem)]" +
+            (message.status === "sending" ? " opacity-80" : "")
+          }
         >
           <BubbleContent
             className={
-              "rounded-2xl rounded-br-md px-4 py-2.5 text-base whitespace-pre-wrap" +
+              "rounded-2xl rounded-br-md px-4 py-2.5 text-base whitespace-pre-wrap lg:text-[17px]" +
               (message.status === "error"
                 ? ""
                 : " bg-linear-to-br from-(--user-bubble-from) to-(--user-bubble-to) text-white shadow-md shadow-primary/20")

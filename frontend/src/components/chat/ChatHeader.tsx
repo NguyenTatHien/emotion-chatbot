@@ -2,6 +2,7 @@ import { Bot, MessageSquarePlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/system/StatusBadge"
 import { ThemeToggle } from "@/components/system/ThemeToggle"
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 
 export const BOT_NAME = "Bạn đồng hành"
 
@@ -14,6 +15,8 @@ const STATUS_TEXT: Record<Connection, string> = {
 }
 
 interface ChatHeaderProps {
+  /** Tiêu đề cuộc đang mở; không có thì hiện tên bot. */
+  title?: string
   connection: Connection
   mode?: string | null
   degraded?: boolean
@@ -24,6 +27,7 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({
+  title,
   connection,
   mode,
   degraded,
@@ -32,9 +36,16 @@ export function ChatHeader({
   llmBackend,
   onNewConversation,
 }: ChatHeaderProps) {
+  const { isMobile, open } = useSidebar()
+  // Sidebar đang hiện (desktop, mở) thì nút "Cuộc trò chuyện mới" nằm trong sidebar.
+  const sidebarVisible = !isMobile && open
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border/60 bg-background/70 px-3 py-2 backdrop-blur-xl sm:gap-3 sm:px-4">
-      <div className="relative shrink-0" aria-hidden="true">
+    <header className="sticky top-0 z-20 flex min-h-16 items-center gap-2 border-b border-border/60 bg-background/70 px-2 py-2 backdrop-blur-xl sm:gap-3 sm:px-4 lg:px-6">
+      <SidebarTrigger className="size-11 shrink-0 cursor-pointer rounded-full [&_svg]:size-5" />
+      <div
+        className={"relative shrink-0" + (sidebarVisible ? " hidden" : "")}
+        aria-hidden="true"
+      >
         <div className="flex size-10 items-center justify-center rounded-2xl bg-linear-to-br from-(--user-bubble-from) to-(--user-bubble-to) text-white shadow-md shadow-primary/25">
           <Bot className="size-5" />
         </div>
@@ -50,13 +61,10 @@ export function ChatHeader({
         />
       </div>
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-base font-semibold leading-tight">
-          {BOT_NAME}
+        <h1 className="truncate text-base leading-tight font-semibold lg:text-lg">
+          {title ?? BOT_NAME}
         </h1>
-        <p
-          className="truncate text-sm text-muted-foreground"
-          role="status"
-        >
+        <p className="truncate text-sm text-muted-foreground" role="status">
           {STATUS_TEXT[connection]}
         </p>
       </div>
@@ -68,16 +76,18 @@ export function ChatHeader({
         llmBackend={llmBackend}
       />
       <ThemeToggle />
-      <Button
-        type="button"
-        variant="ghost"
-        className="size-11 shrink-0 rounded-full sm:w-auto sm:rounded-lg sm:px-3"
-        aria-label="Cuộc trò chuyện mới"
-        onClick={onNewConversation}
-      >
-        <MessageSquarePlus className="size-5" aria-hidden="true" />
-        <span className="hidden sm:inline">Cuộc trò chuyện mới</span>
-      </Button>
+      {sidebarVisible ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          className="size-11 shrink-0 rounded-full sm:w-auto sm:rounded-lg sm:px-3"
+          aria-label="Cuộc trò chuyện mới"
+          onClick={onNewConversation}
+        >
+          <MessageSquarePlus className="size-5" aria-hidden="true" />
+          <span className="hidden sm:inline">Cuộc trò chuyện mới</span>
+        </Button>
+      )}
     </header>
   )
 }

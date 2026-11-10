@@ -25,7 +25,7 @@ export function GoalPicker({ value, onChange }: GoalPickerProps) {
           <ToggleGroupItem
             key={g.value}
             value={g.value}
-            className="h-10 flex-1 cursor-pointer rounded-full! border-border/80 bg-card/70 px-1 text-sm backdrop-blur sm:flex-none sm:px-4 data-[state=on]:border-transparent data-[state=on]:bg-linear-to-br data-[state=on]:from-(--user-bubble-from) data-[state=on]:to-(--user-bubble-to) data-[state=on]:text-white data-[state=on]:shadow-sm data-[state=on]:shadow-primary/30"
+            className="h-10 flex-1 cursor-pointer rounded-full! border-border/80 bg-card/70 px-1 text-sm backdrop-blur data-[state=on]:border-transparent data-[state=on]:bg-linear-to-br data-[state=on]:from-(--user-bubble-from) data-[state=on]:to-(--user-bubble-to) data-[state=on]:text-white data-[state=on]:shadow-sm data-[state=on]:shadow-primary/30 sm:flex-none sm:px-4"
           >
             {g.label}
           </ToggleGroupItem>
