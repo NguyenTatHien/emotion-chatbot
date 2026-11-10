@@ -2,6 +2,20 @@
 
 Server đích không có GPU nên CafeBERT, PhoWhisper và Qwen3-4B chạy trên **Colab T4** và được backend gọi qua tunnel ngrok. Thư mục này là **khung** để Người 3 chỉ việc chạy: `server_app.py` (FastAPI) gọi thẳng các hàm trong `backend/modules/*`, nên ruột mô hình chỉ viết một lần ở đó.
 
+## Test nhanh trước khi các module xong
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/NguyenTatHien/emotion-chatbot/blob/main/colab/quick_test.ipynb)
+
+`quick_test.ipynb` chạy toàn bộ trong một notebook: kiểm GPU, tải code, nạp mô hình, chạy thử từng module, bật `server_app.py` và mở ngrok, rồi in các Variable cần đặt trên GitHub. Module nào trong repo còn là khung (`NotImplementedError`) thì notebook dùng **bản tham khảo** trong `reference_modules/` (chỉ chép vào máy Colab, không sửa repo):
+
+| Bản tham khảo | Mô hình | Ghi chú |
+|---|---|---|
+| `reference_modules/emotion.py` | `BaoNhan/cafebert-UITVSMEC` | `id2label` của checkpoint đúng thứ tự 7 nhãn |
+| `reference_modules/speech.py` | `vinai/PhoWhisper-small` + librosa | ngưỡng kích động đặt tay, cần Người 3 hiệu chỉnh |
+| `reference_modules/llm.py` | `Qwen/Qwen3-4B` fp16, `enable_thinking=False` | prompt giống bản Gemini |
+
+Người 1 và Người 3 có thể dùng các file này làm điểm xuất phát; khi đã nộp code thật vào `backend/modules/`, notebook tự dùng code đó.
+
 ## Hợp đồng HTTP
 
 | Route | Vào | Ra |

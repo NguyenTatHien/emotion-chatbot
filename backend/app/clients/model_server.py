@@ -66,8 +66,12 @@ class _ReplyOut(BaseModel):
 
 
 def _headers() -> dict[str, str]:
+    # ngrok gói free có thể chèn trang cảnh báo cho trình duyệt; header này bảo ngrok bỏ qua.
+    headers = {"ngrok-skip-browser-warning": "1"}
     token = get_settings().MODEL_SERVER_TOKEN
-    return {TOKEN_HEADER: token} if token else {}
+    if token:
+        headers[TOKEN_HEADER] = token
+    return headers
 
 
 def _base_url() -> str:
