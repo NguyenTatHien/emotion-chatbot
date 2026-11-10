@@ -17,6 +17,11 @@ type ThemeProviderState = {
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)"
 const THEME_VALUES: Theme[] = ["dark", "light", "system"]
+/** Màu thanh trình duyệt trên điện thoại, khớp --background trong index.css. */
+const THEME_COLOR: Record<ResolvedTheme, string> = {
+  light: "#faf8ff",
+  dark: "#14121c",
+}
 
 const ThemeProviderContext = React.createContext<
   ThemeProviderState | undefined
@@ -84,7 +89,12 @@ export function ThemeProvider({
   ...props
 }: ThemeProviderProps) {
   const [theme, setThemeState] = React.useState<Theme>(() => {
-    const storedTheme = localStorage.getItem(storageKey)
+    let storedTheme: string | null
+    try {
+      storedTheme = localStorage.getItem(storageKey)
+    } catch {
+      storedTheme = null
+    }
     if (isTheme(storedTheme)) {
       return storedTheme
     }
@@ -94,7 +104,11 @@ export function ThemeProvider({
 
   const setTheme = React.useCallback(
     (nextTheme: Theme) => {
-      localStorage.setItem(storageKey, nextTheme)
+      try {
+        localStorage.setItem(storageKey, nextTheme)
+      } catch {
+        // Chế độ riêng tư: vẫn đổi theme, chỉ không nhớ được.
+      }
       setThemeState(nextTheme)
     },
     [storageKey]
@@ -111,6 +125,10 @@ export function ThemeProvider({
 
       root.classList.remove("light", "dark")
       root.classList.add(resolvedTheme)
+      root.style.colorScheme = resolvedTheme
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute("content", THEME_COLOR[resolvedTheme])
 
       if (restoreTransitions) {
         restoreTransitions()
@@ -166,7 +184,11 @@ export function ThemeProvider({
                 ? "light"
                 : "dark"
 
-        localStorage.setItem(storageKey, nextTheme)
+        try {
+          localStorage.setItem(storageKey, nextTheme)
+        } catch {
+          // bỏ qua
+        }
         return nextTheme
       })
     }

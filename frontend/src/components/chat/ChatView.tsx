@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { toast } from "sonner"
 import { useChat } from "@/hooks/useChat"
 import { useMeta } from "@/hooks/useMeta"
 import { useSession } from "@/hooks/useSession"
 import type { Rating } from "@/lib/api"
+import { emotionMeta } from "@/lib/emotion-meta"
 import type { Goal } from "@/lib/goals"
 import { ChatHeader, type Connection } from "./ChatHeader"
 import { EmptyState } from "./EmptyState"
@@ -54,34 +55,53 @@ export function ChatView() {
 
   const showEmpty = messages.length === 0 && !pending
 
+  // Màu nền aurora theo cảm xúc của tin gần nhất; chưa có thì giữ màu chủ đạo.
+  const moodStyle = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.role === "user" && m.emotion) {
+        return {
+          "--mood": `var(${emotionMeta(m.emotion.label).cssVar})`,
+        } as CSSProperties
+      }
+    }
+    return undefined
+  }, [messages])
+
   return (
-    <div className="mx-auto flex h-dvh max-w-3xl flex-col bg-background">
-      <ChatHeader
-        connection={connection}
-        mode={lastMeta?.model_mode ?? meta?.model_mode}
-        degraded={degraded}
-        warnings={lastMeta?.warnings}
-        modelServer={modelServer}
-        llmBackend={lastMeta?.llm_backend}
-        onNewConversation={handleNew}
-      />
-      {showEmpty ? (
-        <EmptyState onPick={(text) => send(text)} />
-      ) : (
-        <MessageList
-          messages={messages}
-          pending={pending}
-          onRetry={retry}
-          onRate={handleRate}
+    <div
+      className="relative isolate h-dvh overflow-hidden bg-background"
+      style={moodStyle}
+    >
+      <div className="aurora -z-10" aria-hidden="true" />
+      <div className="mx-auto flex h-full max-w-3xl flex-col">
+        <ChatHeader
+          connection={connection}
+          mode={lastMeta?.model_mode ?? meta?.model_mode}
+          degraded={degraded}
+          warnings={lastMeta?.warnings}
+          modelServer={modelServer}
+          llmBackend={lastMeta?.llm_backend}
+          onNewConversation={handleNew}
         />
-      )}
-      <PromptBar
-        onSend={send}
-        onSendVoice={sendVoice}
-        busy={pending}
-        goal={goal}
-        onGoalChange={setGoal}
-      />
+        {showEmpty ? (
+          <EmptyState onPick={(text) => send(text)} />
+        ) : (
+          <MessageList
+            messages={messages}
+            pending={pending}
+            onRetry={retry}
+            onRate={handleRate}
+          />
+        )}
+        <PromptBar
+          onSend={send}
+          onSendVoice={sendVoice}
+          busy={pending}
+          goal={goal}
+          onGoalChange={setGoal}
+        />
+      </div>
     </div>
   )
 }

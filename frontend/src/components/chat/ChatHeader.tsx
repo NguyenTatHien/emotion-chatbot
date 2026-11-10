@@ -1,6 +1,7 @@
 import { Bot, MessageSquarePlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/system/StatusBadge"
+import { ThemeToggle } from "@/components/system/ThemeToggle"
 
 export const BOT_NAME = "Bạn đồng hành"
 
@@ -32,31 +33,30 @@ export function ChatHeader({
   onNewConversation,
 }: ChatHeaderProps) {
   return (
-    <header className="flex items-center gap-3 border-b px-4 py-2">
-      <div
-        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
-        aria-hidden="true"
-      >
-        <Bot className="size-5" />
+    <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border/60 bg-background/70 px-3 py-2 backdrop-blur-xl sm:gap-3 sm:px-4">
+      <div className="relative shrink-0" aria-hidden="true">
+        <div className="flex size-10 items-center justify-center rounded-2xl bg-linear-to-br from-(--user-bubble-from) to-(--user-bubble-to) text-white shadow-md shadow-primary/25">
+          <Bot className="size-5" />
+        </div>
+        <span
+          className={
+            "absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-background " +
+            (connection === "online"
+              ? "bg-emerald-500"
+              : connection === "offline"
+                ? "bg-destructive"
+                : "bg-muted-foreground")
+          }
+        />
       </div>
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-base font-semibold leading-tight">
           {BOT_NAME}
         </h1>
         <p
-          className="flex items-center gap-1.5 text-sm text-muted-foreground"
+          className="truncate text-sm text-muted-foreground"
           role="status"
         >
-          <span
-            aria-hidden="true"
-            className={
-              connection === "online"
-                ? "size-2 rounded-full bg-emo-fear"
-                : connection === "offline"
-                  ? "size-2 rounded-full bg-destructive"
-                  : "size-2 rounded-full bg-muted-foreground"
-            }
-          />
           {STATUS_TEXT[connection]}
         </p>
       </div>
@@ -67,10 +67,11 @@ export function ChatHeader({
         modelServer={modelServer}
         llmBackend={llmBackend}
       />
+      <ThemeToggle />
       <Button
         type="button"
         variant="ghost"
-        className="size-11 shrink-0 sm:w-auto sm:px-3"
+        className="size-11 shrink-0 rounded-full sm:w-auto sm:rounded-lg sm:px-3"
         aria-label="Cuộc trò chuyện mới"
         onClick={onNewConversation}
       >

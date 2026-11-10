@@ -68,7 +68,8 @@ export function StatusBadge({
       {modelServer === "up" || modelServer === "down" ? (
         <ModelServerBadge status={modelServer} />
       ) : null}
-      {llmBackend ? (
+      {/* "mock" trùng với nhãn chế độ "Mô phỏng" bên cạnh nên không hiện lại. */}
+      {llmBackend && llmBackend !== "mock" ? (
         <Badge
           variant="outline"
           className="hidden h-7 px-2.5 sm:inline-flex"
@@ -124,7 +125,10 @@ function ModeBadge({
   }
   if (!mode) return null
   return (
-    <Badge variant="secondary" className="h-7 px-2.5">
+    <Badge
+      variant="secondary"
+      className="hidden h-7 px-2.5 min-[420px]:inline-flex"
+    >
       {MODE_VI[mode] ?? mode}
     </Badge>
   )

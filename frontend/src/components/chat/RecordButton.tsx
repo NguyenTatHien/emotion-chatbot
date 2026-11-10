@@ -12,8 +12,8 @@ export function RecordButton({ onClick, disabled, busy }: RecordButtonProps) {
   return (
     <Button
       type="button"
-      variant="outline"
-      className="size-11 shrink-0 rounded-full"
+      variant="ghost"
+      className="size-11 shrink-0 cursor-pointer rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
       aria-label="Ghi âm"
       aria-busy={busy || undefined}
       disabled={disabled || busy}

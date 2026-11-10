@@ -280,7 +280,9 @@ describe("ChatView", () => {
 
     await user.click(screen.getByRole("button", { name: "Cuộc trò chuyện mới" }))
     expect(screen.queryByText("Nghe có vẻ bạn đang buồn.")).not.toBeInTheDocument()
-    expect(screen.getByText("Chào bạn, mình ở đây để lắng nghe")).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { name: "Chào bạn, mình ở đây để lắng nghe" })
+    ).toBeInTheDocument()
 
     await user.type(screen.getByLabelText("Nhập tin nhắn"), "hai{Enter}")
     await waitFor(() => expect(chatCalls(fetchMock)).toHaveLength(2))

@@ -84,7 +84,7 @@ export function PromptBar({
 
   return (
     <form
-      className="flex flex-col gap-2 border-t bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      className="relative z-10 flex flex-col gap-2.5 bg-linear-to-t from-background via-background/90 to-transparent px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4"
       onSubmit={(e) => {
         e.preventDefault()
         submit()
@@ -101,7 +101,7 @@ export function PromptBar({
           onSend={() => void voice.send()}
         />
       ) : (
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-1.5 rounded-3xl border border-border/80 bg-card/85 p-1.5 shadow-lg shadow-primary/5 backdrop-blur-xl transition-[border-color,box-shadow] duration-200 focus-within:border-primary/50 focus-within:shadow-primary/15">
           <RecordButton
             onClick={() => void voice.start()}
             disabled={busy}
@@ -116,11 +116,11 @@ export function PromptBar({
             aria-label="Nhập tin nhắn"
             placeholder="Nhập tin nhắn…"
             enterKeyHint="send"
-            className="field-sizing-fixed max-h-40 min-h-11 flex-1 resize-none text-base md:text-base"
+            className="field-sizing-fixed max-h-40 min-h-11 flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-base shadow-none focus-visible:ring-0 md:text-base dark:bg-transparent"
           />
           <Button
             type="submit"
-            className="size-11 shrink-0 rounded-full"
+            className="size-11 shrink-0 cursor-pointer rounded-full bg-linear-to-br from-(--user-bubble-from) to-(--user-bubble-to) text-white shadow-md shadow-primary/30 transition-[opacity,box-shadow] duration-200 hover:shadow-lg hover:shadow-primary/40 disabled:shadow-none"
             aria-label="Gửi tin nhắn"
             disabled={!text.trim()}
           >

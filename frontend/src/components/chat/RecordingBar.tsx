@@ -23,7 +23,7 @@ export function RecordingBar({
 }: RecordingBarProps) {
   return (
     <div
-      className="flex min-h-11 items-center gap-2 rounded-3xl border bg-muted/40 py-0 pr-0 pl-1"
+      className="flex min-h-14 items-center gap-2 rounded-3xl border border-destructive/30 bg-card/85 p-1.5 pl-2 shadow-lg shadow-destructive/5 backdrop-blur-xl"
       data-testid="recording-bar"
     >
       <Button

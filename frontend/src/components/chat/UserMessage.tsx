@@ -20,8 +20,16 @@ export function UserMessage({ message, onRetry }: UserMessageProps) {
         <Bubble
           align="end"
           variant={message.status === "error" ? "destructive" : "default"}
+          className={message.status === "sending" ? "opacity-80" : undefined}
         >
-          <BubbleContent className="px-4 py-2.5 text-base whitespace-pre-wrap">
+          <BubbleContent
+            className={
+              "rounded-2xl rounded-br-md px-4 py-2.5 text-base whitespace-pre-wrap" +
+              (message.status === "error"
+                ? ""
+                : " bg-linear-to-br from-(--user-bubble-from) to-(--user-bubble-to) text-white shadow-md shadow-primary/20")
+            }
+          >
             {message.kind === "voice" ? (
               <VoiceBubble
                 audioUrl={message.audioUrl}

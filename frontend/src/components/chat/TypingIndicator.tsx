@@ -9,15 +9,15 @@ export function TypingIndicator() {
         <BotAvatar />
       </MessageAvatar>
       <MessageContent>
-        <Bubble variant="muted">
-          <BubbleContent className="flex items-center gap-1 py-3">
+        <Bubble variant="outline">
+          <BubbleContent className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-card/80 px-4 py-3 shadow-sm backdrop-blur">
             <span className="sr-only">Bạn đồng hành đang soạn tin</span>
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
                 aria-hidden="true"
                 style={{ animationDelay: `${i * 150}ms` }}
-                className="size-2 rounded-full bg-muted-foreground/70 motion-safe:animate-bounce"
+                className="size-2 rounded-full bg-primary/70 motion-safe:animate-bounce"
               />
             ))}
           </BubbleContent>
