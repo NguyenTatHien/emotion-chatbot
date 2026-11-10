@@ -41,7 +41,9 @@ def _get_llm():
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    model_name = os.environ.get("LLM_MODEL", _DEFAULT_MODEL)
+    # Quy ước env theo bản tham khảo upstream (colab/reference_modules/llm.py):
+    # LLM_MODEL_ID là biến chính thức; LLM_MODEL giữ làm alias cho phép cũ.
+    model_name = os.environ.get("LLM_MODEL_ID") or os.environ.get("LLM_MODEL", _DEFAULT_MODEL)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     if torch.cuda.is_available():
@@ -105,9 +107,20 @@ def generate_reply(
     tokenizer, model = state["tokenizer"], state["model"]
 
     messages = _build_messages(text, emotion, arousal, history, goal)
-    prompt = tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
-    )
+    # Qwen3 có chế độ "thinking" bật mặc định — phải tắt (tham khảo upstream
+    # reference_modules/llm.py). Template của Qwen2.5 không nhận kwarg này,
+    # nên gọi thử và bỏ qua nếu chưa hỗ trợ.
+    try:
+        prompt = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False,
+        )
+    except (TypeError, KeyError):
+        prompt = tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
     inputs = tokenizer([prompt], return_tensors="pt").to(state["device"])
     max_new = 128
 
@@ -121,7 +134,8 @@ def generate_reply(
                 max_new_tokens=max_new,
                 do_sample=True,
                 temperature=0.7,
-                top_p=0.9,
+                top_p=0.8,  # theo khuyến nghị Qwen3 cho chế độ không suy luận
+                top_k=20,
                 pad_token_id=tokenizer.eos_token_id,
             )
         elapsed = _time.monotonic() - started
