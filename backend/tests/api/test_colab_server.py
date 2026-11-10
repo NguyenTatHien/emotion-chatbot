@@ -60,17 +60,20 @@ def test_routes_return_mock_data(server, audio_samples):
 
 
 def test_unimplemented_real_module_returns_501(monkeypatch):
-    """Không đặt SERVER_USE_MOCKS: module thật còn là stub thì trả 501, không phải 500."""
+    """Không đặt SERVER_USE_MOCKS: module thật còn là stub thì trả 501, không phải 500.
+
+    Gắn một stub vào modules.speech để test không phụ thuộc việc module thật đã có code
+    hay chưa (và không cần cài thư viện ML).
+    """
     monkeypatch.delenv("SERVER_USE_MOCKS", raising=False)
     monkeypatch.delenv("MODEL_SERVER_TOKEN", raising=False)
     from modules import speech
 
-    try:
-        speech.transcribe("x.wav")
-    except NotImplementedError:
-        pass
-    else:
-        pytest.skip("modules.speech đã được cài đặt")
+    def stub(_wav_path: str) -> str:
+        raise NotImplementedError("chưa cài đặt")
+
+    monkeypatch.setattr(speech, "transcribe", stub)
     with TestClient(load_server(monkeypatch)) as c:
         r = c.post("/transcribe", files={"file": ("a.wav", b"RIFF", "audio/wav")})
         assert r.status_code == 501
+        assert "chưa cài đặt" in r.json()["detail"]

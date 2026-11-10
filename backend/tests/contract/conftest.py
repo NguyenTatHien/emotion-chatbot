@@ -1,4 +1,5 @@
-"""Tiện ích dùng chung cho contract test: chạy trên mock và local (skip nếu local còn là stub)."""
+"""Tiện ích dùng chung cho contract test: chạy trên mock và local (skip nếu local còn là stub
+hoặc máy chưa cài thư viện ML)."""
 
 import importlib
 import math
@@ -22,11 +23,38 @@ def load(variant: str, module: str):
     return importlib.import_module(f"{package}.{module}")
 
 
+# Thư viện của requirements-ml.txt (và phụ thuộc của chúng). CI và máy dev mặc định không cài,
+# nên bản `local` gọi tới mô hình thật sẽ được skip thay vì fail.
+ML_PACKAGES = {
+    "torch",
+    "transformers",
+    "librosa",
+    "numpy",
+    "scipy",
+    "sklearn",
+    "sentencepiece",
+    "accelerate",
+    "soundfile",
+}
+
+
 def call(variant: str, module: str, func: str, *args, **kwargs):
-    """Gọi hàm của module; bản local còn là stub thì skip và nêu tên người phụ trách."""
+    """Gọi hàm của module; bản local còn là stub thì skip và nêu tên người phụ trách.
+
+    Bản local đã có code nhưng máy chưa cài thư viện ML (ví dụ CI) cũng skip, kèm lời
+    nhắc cài requirements-ml.txt. ImportError của gói khác vẫn fail để không che lỗi thật.
+    """
     fn = getattr(load(variant, module), func)
     try:
         return fn(*args, **kwargs)
+    except ModuleNotFoundError as exc:
+        missing = (exc.name or "").split(".")[0]
+        if variant == "local" and missing in ML_PACKAGES:
+            pytest.skip(
+                f"Thiếu thư viện ML '{missing}' — cài backend/requirements-ml.txt để chạy "
+                f"{module}.{func} thật"
+            )
+        raise
     except NotImplementedError:
         if variant == "local":
             pytest.skip(f"Chưa implement — {OWNERS[module]} phụ trách ({module}.{func})")
