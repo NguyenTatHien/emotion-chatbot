@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react"
 import { ArrowDown } from "lucide-react"
 import {
   MessageScroller,
@@ -6,9 +7,11 @@ import {
   MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
+  useMessageScroller,
 } from "@/components/ui/message-scroller"
 import type { ChatMessage } from "@/hooks/chat-state"
 import type { Rating } from "@/lib/api"
+import { cn } from "@/lib/utils"
 import { BotMessage } from "./BotMessage"
 import { TypingIndicator } from "./TypingIndicator"
 import { UserMessage } from "./UserMessage"
@@ -20,14 +23,47 @@ interface MessageListProps {
   onRate?: (id: string, rating: Rating) => void
 }
 
+/** Hiệu ứng xuất hiện cho tin mới (tw-animate-css); tắt khi người dùng bật giảm chuyển động. */
+const ENTER =
+  "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-3 motion-safe:duration-300 motion-safe:ease-out"
+
+/**
+ * Khi người dùng gửi tin (hoặc bắt đầu chờ trả lời) thì cuộn mượt xuống cuối,
+ * kể cả khi họ đang cuộn lên đọc tin cũ. Lúc bot "gõ" dần, autoScroll của
+ * MessageScroller tự bám cuối nếu người dùng đang ở cuối.
+ */
+function FollowLatest({ trigger }: { trigger: string }) {
+  const { scrollToEnd } = useMessageScroller()
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
+    const frame = requestAnimationFrame(() =>
+      scrollToEnd({ behavior: "smooth" })
+    )
+    return () => cancelAnimationFrame(frame)
+  }, [trigger, scrollToEnd])
+  return null
+}
+
 export function MessageList({
   messages,
   pending,
   onRetry,
   onRate,
 }: MessageListProps) {
+  // Tin có sẵn lúc mở (khôi phục từ lịch sử) thì không chạy hiệu ứng xuất hiện.
+  const [initialIds] = useState(() => new Set(messages.map((m) => m.id)))
+  const isNew = (id: string) => !initialIds.has(id)
+
+  const lastUser = [...messages].reverse().find((m) => m.role === "user")
+  const followTrigger = `${lastUser?.id ?? ""}:${pending}`
+
   return (
-    <MessageScrollerProvider defaultScrollPosition="end">
+    <MessageScrollerProvider autoScroll defaultScrollPosition="end">
+      <FollowLatest trigger={followTrigger} />
       <MessageScroller className="flex-1">
         <MessageScrollerViewport>
           <MessageScrollerContent
@@ -41,7 +77,7 @@ export function MessageList({
               <MessageScrollerItem
                 key={m.id}
                 messageId={m.id}
-                scrollAnchor={m.role === "user"}
+                className={cn(isNew(m.id) && ENTER)}
               >
                 {m.role === "user" ? (
                   <UserMessage message={m} onRetry={onRetry} />
@@ -51,7 +87,7 @@ export function MessageList({
               </MessageScrollerItem>
             ))}
             {pending ? (
-              <MessageScrollerItem messageId="typing">
+              <MessageScrollerItem messageId="typing" className={ENTER}>
                 <TypingIndicator />
               </MessageScrollerItem>
             ) : null}

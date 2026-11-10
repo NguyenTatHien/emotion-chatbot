@@ -146,6 +146,7 @@ export function ChatView() {
           <EmptyState onPick={(text) => send(text)} />
         ) : (
           <MessageList
+            key={sessionId}
             messages={messages}
             pending={pending}
             onRetry={retry}
