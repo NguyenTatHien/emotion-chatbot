@@ -1,12 +1,36 @@
-# Dữ liệu mẫu giữ chỗ — Người 5 sẽ thay bằng danh sách bài hát thật (giữ nguyên các cột).
+# Dữ liệu demo: link YouTube thật (đã kiểm tra tồn tại và cho phép nhúng qua oEmbed ngày 2026-11-10).
+# Nhãn cảm xúc/mục tiêu do nhóm gắn tay để mô phỏng; Người 5 sẽ mở rộng và chuẩn hoá (giữ nguyên các cột).
 title,artist,genre,language,emotion_tags,goal_tags,energy,youtube_url
-Bài mẫu 1,Nghệ sĩ mẫu A,ballad,vi,Sadness|Other,xoa_diu|giai_toa,low,https://www.youtube.com/watch?v=mauBai00001
-Bài mẫu 2,Nghệ sĩ mẫu B,acoustic,vi,Sadness|Fear,xoa_diu|tap_trung,low,https://www.youtube.com/watch?v=mauBai00002
-Bài mẫu 3,Nghệ sĩ mẫu C,pop,vi,Enjoyment|Surprise,nang_mood,high,https://www.youtube.com/watch?v=mauBai00003
-Bài mẫu 4,Nghệ sĩ mẫu D,dance,vi,Enjoyment|Other,nang_mood|giai_toa,high,https://www.youtube.com/watch?v=mauBai00004
-Bài mẫu 5,Nghệ sĩ mẫu E,rock,vi,Anger|Disgust,giai_toa,high,https://www.youtube.com/watch?v=mauBai00005
-Bài mẫu 6,Nghệ sĩ mẫu F,lofi,vi,Anger|Fear|Other,tap_trung|xoa_diu,low,https://www.youtube.com/watch?v=mauBai00006
-Bài mẫu 7,Nghệ sĩ mẫu G,indie,vi,Disgust|Other,giai_toa|tap_trung,medium,https://www.youtube.com/watch?v=mauBai00007
-Bài mẫu 8,Nghệ sĩ mẫu H,instrumental,vi,Fear|Surprise|Other,tap_trung|xoa_diu,medium,https://www.youtube.com/watch?v=mauBai00008
-Bài mẫu 9,Nghệ sĩ mẫu I,pop,vi,Surprise|Enjoyment,nang_mood|tap_trung,medium,https://www.youtube.com/watch?v=mauBai00009
-Bài mẫu 10,Nghệ sĩ mẫu J,ballad,vi,Other|Sadness|Enjoyment,xoa_diu|nang_mood,medium,https://www.youtube.com/watch?v=mauBai00010
+Nàng Thơ,Hoàng Dũng,ballad,vi,Sadness|Other,xoa_diu,low,https://www.youtube.com/watch?v=Zzn9-ATB9aU
+Ngày Chưa Giông Bão,Bùi Lan Hương,ballad,vi,Sadness|Fear,xoa_diu,low,https://www.youtube.com/watch?v=60xkLp4z1uk
+Có Chàng Trai Viết Lên Cây,Phan Mạnh Quỳnh,ballad,vi,Sadness,xoa_diu|giai_toa,low,https://www.youtube.com/watch?v=EUEUZDV-in0
+Hơn Cả Yêu,Đức Phúc,ballad,vi,Sadness,xoa_diu,low,https://www.youtube.com/watch?v=__kGJZ-kPno
+Bước Qua Mùa Cô Đơn,Vũ.,indie,vi,Sadness|Fear,xoa_diu,low,https://www.youtube.com/watch?v=n6Pnzi6r9NU
+Một Đêm Say,Thịnh Suy,indie,vi,Sadness|Other,xoa_diu|tap_trung,low,https://www.youtube.com/watch?v=Csuk1Wm5W0E
+Waiting For You,MONO,pop,vi,Sadness|Other,xoa_diu|nang_mood,medium,https://www.youtube.com/watch?v=okz5RIZRT0U
+Muộn Rồi Mà Sao Còn,Sơn Tùng M-TP,pop,vi,Sadness|Other,xoa_diu|tap_trung,medium,https://www.youtube.com/watch?v=xypzmu5mMPY
+Bình Yên,Vũ. ft. Binz,indie,vi,Fear|Sadness,xoa_diu,low,https://www.youtube.com/watch?v=f9P7_qWrf38
+Đi Về Nhà,Đen x JustaTee,hiphop,vi,Fear|Sadness|Other,xoa_diu,medium,https://www.youtube.com/watch?v=vTJdVE_gjI0
+Mang Tiền Về Cho Mẹ,Đen ft. Nguyên Thảo,hiphop,vi,Other|Sadness|Fear,xoa_diu|nang_mood,medium,https://www.youtube.com/watch?v=UVbv-PJXm14
+Lối Nhỏ,Đen ft. Phương Anh Đào,hiphop,vi,Other|Enjoyment,nang_mood|xoa_diu,medium,https://www.youtube.com/watch?v=KKc_RMln5UY
+Hãy Trao Cho Anh,Sơn Tùng M-TP ft. Snoop Dogg,pop,vi,Enjoyment|Surprise,nang_mood,high,https://www.youtube.com/watch?v=knW7-x7Y7RE
+See Tình,Hoàng Thùy Linh,pop,vi,Enjoyment|Surprise,nang_mood,high,https://www.youtube.com/watch?v=gJHSDZfJrRY
+Bigcityboi,Touliver x Binz,hiphop,vi,Enjoyment|Anger,nang_mood|giai_toa,high,https://www.youtube.com/watch?v=jgZkrA8E5do
+Đi Để Trở Về,Soobin Hoàng Sơn,pop,vi,Enjoyment|Other,nang_mood,medium,https://www.youtube.com/watch?v=iy53wPnNCYU
+Thích Em Hơi Nhiều,Wren Evans,pop,vi,Enjoyment|Surprise,nang_mood,medium,https://www.youtube.com/watch?v=faSVTByG0LQ
+Ngày Đầu Tiên,Đức Phúc,pop,vi,Enjoyment|Surprise,nang_mood,medium,https://www.youtube.com/watch?v=rIXhXaQ8tiM
+Ghé Qua,Dick x Tofu x PC,pop,vi,Enjoyment|Other,nang_mood|xoa_diu,medium,https://www.youtube.com/watch?v=zEWSSod0zTY
+Có Hẹn Với Thanh Xuân,MONSTAR,pop,vi,Surprise|Enjoyment,nang_mood,medium,https://www.youtube.com/watch?v=HXzRlUL1cF0
+Happy,Pharrell Williams,pop,en,Enjoyment|Surprise,nang_mood,high,https://www.youtube.com/watch?v=ZbZSe6N_BXs
+Từ Chối Nhẹ Nhàng Thôi,Phúc Du ft. Bích Phương,pop,vi,Disgust|Other|Surprise,nang_mood|giai_toa,medium,https://www.youtube.com/watch?v=Kma3NpC3JKQ
+Không Thể Say,HIEUTHUHAI,hiphop,vi,Sadness|Disgust,giai_toa,medium,https://www.youtube.com/watch?v=i0nd3NPJ4MI
+Chìm Sâu,RPT MCK ft. Trung Trần,hiphop,vi,Disgust|Sadness|Anger,giai_toa,medium,https://www.youtube.com/watch?v=Yw9Ra2UiVLw
+Đánh Đổi,Obito ft. MCK,hiphop,vi,Anger|Disgust|Fear,giai_toa|tap_trung,medium,https://www.youtube.com/watch?v=vPz8ftK_4bk
+Exit Sign,HIEUTHUHAI ft. marzuz,hiphop,vi,Anger|Disgust,giai_toa,high,https://www.youtube.com/watch?v=sJt_i0hOugA
+Numb,Linkin Park,rock,en,Anger|Disgust|Sadness,giai_toa,high,https://www.youtube.com/watch?v=kXYiU_JCYtU
+Believer,Imagine Dragons,rock,en,Anger|Enjoyment,giai_toa|nang_mood,high,https://www.youtube.com/watch?v=7wtfhZwyrcc
+3107 (album),"W/n ft. Nâu, Dươngg, 267",lofi,vi,Sadness|Other|Fear,tap_trung|xoa_diu,low,https://www.youtube.com/watch?v=GatNL0mmQGc
+River Flows in You,Yiruma,piano,instrumental,Other|Sadness|Fear,tap_trung|xoa_diu,low,https://www.youtube.com/watch?v=7maJOI3QMu0
+Clair de Lune,Claude Debussy,classical,instrumental,Other|Fear|Sadness,tap_trung|xoa_diu,low,https://www.youtube.com/watch?v=WNcsUNKlAKw
+Weightless,Marconi Union,ambient,instrumental,Fear|Anger|Other,xoa_diu|tap_trung,low,https://www.youtube.com/watch?v=UfcAVejslrU
+Experience,Ludovico Einaudi,piano,instrumental,Other|Surprise|Enjoyment,tap_trung|nang_mood,medium,https://www.youtube.com/watch?v=eUDVUZZyA0M

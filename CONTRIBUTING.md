@@ -64,7 +64,7 @@ Test `test_import_is_light` sẽ báo lỗi nếu bạn import thư viện nặn
 - Không commit `.env`, khóa API, trọng số mô hình (`*.bin`, `*.safetensors`, `*.pt`), file audio.
 - Chuỗi hiển thị cho người dùng viết bằng tiếng Việt có dấu; tên biến/hàm bằng tiếng Anh.
 - `safety`: không tự bịa số điện thoại hỗ trợ. Số đường dây do Người 3 kiểm chứng rồi điền vào `SAFETY_HOTLINE_TEXT`.
-- `music`: dữ liệu trong `backend/data/songs.csv` hiện là mẫu giữ chỗ; Người 5 thay bằng dữ liệu thật, giữ nguyên các cột.
+- `music`: `backend/data/songs.csv` hiện có 33 bài demo với link YouTube thật (đã kiểm tra cho phép nhúng), nhãn `emotion_tags`/`goal_tags`/`energy` gắn tay để mô phỏng. Người 5 mở rộng và chuẩn hoá nhãn, giữ nguyên các cột; kiểm tra link mới bằng `https://www.youtube.com/oembed?format=json&url=<link>` (200 = tồn tại và cho nhúng).
 
 ## Nhánh và pull request
 

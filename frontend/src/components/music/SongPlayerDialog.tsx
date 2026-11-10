@@ -101,11 +101,13 @@ export function SongPlayerDialog({
                 title={`Phát bài ${song.title}`}
                 className="size-full border-0"
                 allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                // YouTube yêu cầu Referer của trang nhúng (thiếu sẽ báo lỗi 153).
+                referrerPolicy="strict-origin-when-cross-origin"
                 allowFullScreen
               />
             </div>
 
-            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+            <div className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:gap-4 md:px-5">
               <div className="min-w-0 flex-1">
                 <DialogTitle className="truncate text-lg leading-tight font-semibold">
                   {song.title}
@@ -146,7 +148,7 @@ export function SongPlayerDialog({
                 <Button
                   asChild
                   variant="outline"
-                  className="ml-auto h-11 cursor-pointer gap-1.5 rounded-full px-3 sm:ml-1 sm:px-4"
+                  className="ml-auto h-11 cursor-pointer gap-1.5 rounded-full px-3 md:ml-1 md:px-4"
                 >
                   <a
                     href={watchUrl(id)}
@@ -155,8 +157,8 @@ export function SongPlayerDialog({
                     rel="noopener noreferrer"
                   >
                     <ExternalLink className="size-4" aria-hidden="true" />
-                    <span className="sm:hidden">YouTube</span>
-                    <span className="hidden sm:inline">Mở trên YouTube</span>
+                    <span className="md:hidden">YouTube</span>
+                    <span className="hidden md:inline">Mở trên YouTube</span>
                   </a>
                 </Button>
                 <DialogClose asChild>
