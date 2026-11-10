@@ -69,7 +69,7 @@ Chọn Runtime → Change runtime type → **T4 GPU**. Trong notebook, mỗi kh�
    )
    ```
 
-5. Mở tunnel bằng **ngrok static domain** (URL cố định, đăng ký miễn phí trong dashboard ngrok → Domains):
+5. Mở tunnel bằng **ngrok** với dev domain cố định mà gói miễn phí cấp sẵn cho mỗi tài khoản (xem trong dashboard ngrok → Domains; gói free không tự đặt tên được, giới hạn 1 GB dữ liệu ra mỗi tháng, đủ cho JSON):
 
    ```python
    !ngrok config add-authtoken $NGROK_AUTHTOKEN
@@ -78,9 +78,11 @@ Chọn Runtime → Change runtime type → **T4 GPU**. Trong notebook, mỗi kh�
 
 6. Kiểm tra từ bất kỳ máy nào: `curl https://<ten-mien-tinh>.ngrok-free.app/health`.
 
-> Vì URL ngrok là công khai, **luôn đặt `MODEL_SERVER_TOKEN`**. Nếu không dùng static domain, URL đổi mỗi lần chạy và phải sửa `.env` của backend rồi khởi động lại.
+> Vì URL ngrok là công khai, **luôn đặt `MODEL_SERVER_TOKEN`**. Dev domain không đổi giữa các lần chạy nên chỉ cần khai báo một lần; nếu dùng tunnel đổi URL (ví dụ Cloudflare quick tunnel) thì mỗi lần phải sửa `MODEL_SERVER_URL` rồi chạy lại Deploy.
 
 ## Cấu hình `.env` của backend tương ứng
+
+Trên web thật không sửa `.env` bằng tay: đặt ở GitHub → Environments → production (Variable `MODEL_SERVER_URL`, `EMOTION_MODE`, `SPEECH_MODE`, `LLM_MODE`; Secret `MODEL_SERVER_TOKEN`) rồi chạy workflow Deploy, xem [deploy/README.md](../deploy/README.md#cấu-hình-module-từ-github-không-cần-ssh). Khi chạy backend trên máy mình thì dùng `.env` như dưới:
 
 ```env
 EMOTION_MODE=remote

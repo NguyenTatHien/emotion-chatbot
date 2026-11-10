@@ -70,17 +70,25 @@ jobs:
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           SHA: ${{ steps.target.outputs.sha }}
-          # Cấu hình LLM ghi vào .env của server; để trống = giữ nguyên giá trị trên server.
+          # Cấu hình ghi vào .env của server; để trống = giữ nguyên giá trị trên server.
+          # Bí mật (Secrets)
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MODEL_SERVER_TOKEN: ${{ secrets.MODEL_SERVER_TOKEN }}
+          # Cấu hình (Variables)
           LLM_MODE: ${{ vars.LLM_MODE }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          EMOTION_MODE: ${{ vars.EMOTION_MODE }}
+          SPEECH_MODE: ${{ vars.SPEECH_MODE }}
+          SAFETY_MODE: ${{ vars.SAFETY_MODE }}
+          MUSIC_MODE: ${{ vars.MUSIC_MODE }}
+          MODEL_SERVER_URL: ${{ vars.MODEL_SERVER_URL }}
         run: |
           # Gửi qua stdin (không đặt trên dòng lệnh) để khoá không lộ trong log/tiến trình.
-          {
-            if [ -n "$GEMINI_API_KEY" ]; then printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY"; fi
-            if [ -n "$LLM_MODE" ]; then printf 'LLM_MODE=%s\n' "$LLM_MODE"; fi
-            if [ -n "$GEMINI_MODEL" ]; then printf 'GEMINI_MODEL=%s\n' "$GEMINI_MODEL"; fi
-          } | ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" \
+          for name in GEMINI_API_KEY MODEL_SERVER_TOKEN LLM_MODE GEMINI_MODEL EMOTION_MODE \
+            SPEECH_MODE SAFETY_MODE MUSIC_MODE MODEL_SERVER_URL; do
+            value="${!name}"
+            if [ -n "$value" ]; then printf '%s=%s\n' "$name" "$value"; fi
+          done | ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" \
             -o BatchMode=yes -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
             -o ConnectTimeout=20 -o ServerAliveInterval=15 \
             "$DEPLOY_USER@$DEPLOY_HOST" "deploy $SHA"

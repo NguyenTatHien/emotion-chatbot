@@ -49,19 +49,33 @@ Thiết lập (đã làm):
 - `remote-deploy.sh` (thuộc root, user `deploy` không sửa được) chỉ nhận `deploy <commit-sha-40-ký-tự>` hoặc `status`. File compose được tải từ GitHub đúng commit đó, nên dù lộ key cũng chỉ deploy lại được các commit đã có trong repo.
 - Script lưu tag hiện tại vào `.tag`, tag trước vào `.tag-truoc`, và xoá image cũ của project (giữ 2 bản gần nhất).
 
-### Cấu hình LLM từ GitHub (khoá Gemini)
+### Cấu hình module từ GitHub (không cần SSH)
 
-Không cần SSH để đổi khoá: đặt ở GitHub → Settings → Environments → **production**:
+Đặt ở GitHub → Settings → Environments → **production**, rồi chạy **Actions → Deploy → Run workflow**:
 
-| Loại | Tên | Ví dụ |
-|---|---|---|
-| Secret | `GEMINI_API_KEY` | khoá lấy ở <https://aistudio.google.com/apikey> |
-| Variable | `LLM_MODE` | `gemini` (chỉ Gemini) hoặc `remote` (Colab, Gemini làm dự phòng) |
-| Variable | `GEMINI_MODEL` | `gemini-3.5-flash-lite` |
+| Loại | Tên | Giá trị hợp lệ | Ghi chú |
+|---|---|---|---|
+| Secret | `GEMINI_API_KEY` | khoá AI Studio | <https://aistudio.google.com/apikey> |
+| Secret | `MODEL_SERVER_TOKEN` | 16–200 ký tự `A-Za-z0-9._~+/=-` | trùng với token đặt trên Colab |
+| Variable | `LLM_MODE` | `mock` `remote` `gemini` | `gemini` = chỉ Gemini; `remote` = Qwen trên Colab, Gemini dự phòng |
+| Variable | `GEMINI_MODEL` | tên model | mặc định `gemini-3.5-flash-lite` |
+| Variable | `EMOTION_MODE` | `mock` `remote` | `remote` = CafeBERT trên Colab (Người 1) |
+| Variable | `SPEECH_MODE` | `mock` `remote` | `remote` = PhoWhisper + librosa trên Colab (Người 3) |
+| Variable | `SAFETY_MODE` | `mock` `local` | `local` = `modules/safety.py` chạy trong backend (Người 3) |
+| Variable | `MUSIC_MODE` | `mock` `local` | `local` = `modules/music.py` chạy trong backend (Người 5) |
+| Variable | `MODEL_SERVER_URL` | `https://...` | URL ngrok của Colab |
 
-Mỗi lần Deploy, workflow gửi các giá trị này qua **stdin của SSH** (không đặt trên dòng lệnh); `remote-deploy.sh` chỉ nhận đúng 3 tên trên, kiểm tra định dạng, ghi vào `.env` (bản cũ ở `.env.truoc`) và tạo lại container nếu `.env` đổi. Log chỉ in tên biến. Để trống một mục thì giá trị trên server được giữ nguyên. Sau khi sửa secret/variable, chạy lại **Actions → Deploy → Run workflow** để áp dụng.
+Cách hoạt động:
 
-**Không bao giờ** ghi khoá vào file trong repo: repo public, khoá sẽ bị quét và thu hồi ngay. Xem cấu hình đang chạy (không lộ khoá): `ssh realestate-vm 'runuser -u deploy -- env SSH_ORIGINAL_COMMAND=status /opt/emotion-chatbot/remote-deploy.sh'`.
+- Workflow gửi các giá trị **có đặt** qua **stdin của SSH** (không nằm trên dòng lệnh); mục để trống thì giá trị trên server được giữ nguyên. Muốn quay về bản giả thì đặt `mock`.
+- `remote-deploy.sh` chỉ nhận đúng các tên trên và kiểm tra định dạng từng giá trị; log chỉ in tên biến.
+- Trước khi áp dụng, script chạy thử cấu hình mới bằng **chính image sắp deploy** (`validate_remote()`): ví dụ bật `remote` mà thiếu `MODEL_SERVER_URL`, hoặc `LLM_MODE=gemini` mà thiếu khoá. Sai thì khôi phục `.env` cũ, workflow báo đỏ kèm lý do, container đang chạy không bị đụng tới.
+- Hợp lệ thì ghi `.env` (bản cũ ở `.env.truoc`) và tạo lại container.
+- Module `remote` cần Colab đang chạy; Colab tắt thì web tự dùng dự phòng (cảm xúc `Other`, LLM sang Gemini), không chết.
+
+Xem cấu hình đang chạy (bí mật chỉ hiện "đã đặt"/"trống"): `ssh realestate-vm 'runuser -u deploy -- env SSH_ORIGINAL_COMMAND=status /opt/emotion-chatbot/remote-deploy.sh </dev/null'`.
+
+**Không bao giờ** ghi khoá hay token vào file trong repo: repo public, sẽ bị quét và thu hồi ngay.
 
 Khi sửa `deploy/remote-deploy.sh` trong repo, cần cài lại bản trên server (server không tự cập nhật script này):
 

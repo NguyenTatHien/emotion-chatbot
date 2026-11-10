@@ -7,8 +7,9 @@
 #   status                         in trạng thái container, tag đang chạy và cấu hình LLM
 #
 # Kèm `deploy`, stdin có thể chứa vài dòng KEY=VALUE (GitHub Secret/Variable) để ghi vào .env.
-# Chỉ nhận GEMINI_API_KEY, GEMINI_MODEL, LLM_MODE, kiểm tra định dạng từng giá trị; log chỉ in
-# tên biến, không in giá trị. Gửi qua stdin để bí mật không nằm trên dòng lệnh.
+# Chỉ nhận các biến trong ENV_RULES, kiểm tra định dạng từng giá trị; log chỉ in tên biến,
+# không in giá trị. Gửi qua stdin để bí mật không nằm trên dòng lệnh. Trước khi áp dụng,
+# cấu hình mới được kiểm bằng chính image sắp chạy; sai thì khôi phục .env cũ và dừng.
 #
 # Compose được lấy từ GitHub theo commit, không nhận từ phía gọi: lộ key cũng chỉ
 # deploy được các commit đã có trong repo, không chạy được cấu hình tuỳ ý.
@@ -21,9 +22,17 @@ COMPOSE="docker-compose.prod.yml"
 IMAGE_RE='^ghcr\.io/nguyentathien/emotion-chatbot-(api|web):sha-[0-9a-f]{7}$'
 
 declare -A ENV_RULES=(
+  # Bí mật (GitHub Secret)
   [GEMINI_API_KEY]='^[A-Za-z0-9_-]{20,200}$'
+  [MODEL_SERVER_TOKEN]='^[A-Za-z0-9._~+/=-]{16,200}$'
+  # Cấu hình (GitHub Variable)
   [GEMINI_MODEL]='^[a-z0-9][a-z0-9.-]{1,63}$'
   [LLM_MODE]='^(mock|local|remote|gemini)$'
+  [EMOTION_MODE]='^(mock|local|remote)$'
+  [SPEECH_MODE]='^(mock|local|remote)$'
+  [SAFETY_MODE]='^(mock|local)$'
+  [MUSIC_MODE]='^(mock|local)$'
+  [MODEL_SERVER_URL]='^https://[A-Za-z0-9.-]+(:[0-9]{2,5})?(/[A-Za-z0-9._~/-]*)?$'
 )
 updates=()
 
@@ -62,11 +71,11 @@ apply_env_updates() {
   for kv in "${updates[@]}"; do
     key="${kv%%=*}"
     if grep -q "^${key}=" "$tmpenv"; then
-      awk -v k="$key=" -v kv="$kv" 'index($0, k) == 1 { print kv; next } { print }'         "$tmpenv" >"$tmpenv.n"
+      awk -v k="$key=" -v kv="$kv" 'index($0, k) == 1 { print kv; next } { print }' \
+        "$tmpenv" >"$tmpenv.n"
       mv "$tmpenv.n" "$tmpenv"
     else
-      printf '%s
-' "$kv" >>"$tmpenv"
+      printf '%s\n' "$kv" >>"$tmpenv"
     fi
     names+=("$key")
   done
@@ -91,7 +100,14 @@ cd "$DIR"
 case "$action" in
   status)
     echo "tag hiện tại: $(cat .tag 2>/dev/null || echo '(chưa có)')"
-    echo "LLM_MODE=$(grep -m1 '^LLM_MODE=' .env | cut -d= -f2-)"       "GEMINI_MODEL=$(grep -m1 '^GEMINI_MODEL=' .env | cut -d= -f2-)"       "GEMINI_API_KEY=$(grep -qE '^GEMINI_API_KEY=.+' .env && echo 'đã đặt' || echo 'trống')"
+    # Biến cấu hình in giá trị; bí mật chỉ in "đã đặt"/"trống".
+    for name in "${!ENV_RULES[@]}"; do
+      value="$(grep -m1 "^${name}=" .env | cut -d= -f2- || true)"
+      case "$name" in
+        GEMINI_API_KEY | MODEL_SERVER_TOKEN) value="$([[ -n "$value" ]] && echo 'đã đặt' || echo 'trống')" ;;
+      esac
+      echo "  $name=$value"
+    done | sort
     if [[ -f "$COMPOSE" ]]; then
       docker compose -f "$COMPOSE" ps
     else
@@ -136,6 +152,18 @@ echo ">> Pull và khởi động TAG=$tag (trước đó: ${prev:-không có})"
 docker compose -f "$COMPOSE" pull --quiet
 up_flags=(-d --remove-orphans --wait --wait-timeout 180)
 if apply_env_updates; then
+  # Kiểm cấu hình mới bằng chính image sắp chạy (mode hợp lệ, remote có URL, gemini có khoá...).
+  # Sai thì khôi phục .env cũ để container đang chạy không bị thay bằng bản hỏng.
+  if ! docker run --rm --env-file .env "ghcr.io/nguyentathien/emotion-chatbot-api:${tag}" \
+    python -c "from app.config import get_settings; get_settings().validate_remote()" \
+    >/dev/null 2>"$DIR/.env-check.log"; then
+    echo "Cấu hình mới không hợp lệ, giữ nguyên .env cũ. Lỗi:" >&2
+    grep -E "Error|không hợp lệ|trống|không được hỗ trợ" "$DIR/.env-check.log" | tail -3 >&2 || true
+    mv .env.truoc .env
+    rm -f "$DIR/.env-check.log"
+    exit 1
+  fi
+  rm -f "$DIR/.env-check.log"
   up_flags+=(--force-recreate) # đảm bảo container đọc lại .env mới
 fi
 docker compose -f "$COMPOSE" up "${up_flags[@]}"

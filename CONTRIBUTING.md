@@ -40,6 +40,17 @@ Chữ ký, kiểu đầu vào/đầu ra nằm trong docstring của từng file.
 
    Module được coi là xong khi toàn bộ test của nó pass (không còn skip). Sau đó đặt `<MODULE>_MODE=local` trong `.env` để cả backend dùng bản thật.
 
+## Bật module của bạn trên web thật (https://emotion.hiennguyen.io.vn)
+
+Cấu hình server đặt ở GitHub → Settings → Environments → **production** (cần quyền admin repo), không cần SSH. Bảng đầy đủ: [deploy/README.md](deploy/README.md#cấu-hình-module-từ-github-không-cần-ssh).
+
+| Module | Chạy ở đâu | Bật thế nào |
+|---|---|---|
+| `safety`, `music` | Trong backend trên server | Merge code vào `main` (tự build + deploy), đặt Variable `SAFETY_MODE` / `MUSIC_MODE` = `local`, chạy Deploy |
+| `emotion`, `speech`, `llm` | Colab T4 (server không có GPU) | Merge code vào `main`, chạy Colab theo [colab/README.md](colab/README.md), đặt Variable `MODEL_SERVER_URL` + Secret `MODEL_SERVER_TOKEN`, rồi `EMOTION_MODE` / `SPEECH_MODE` / `LLM_MODE` = `remote`, chạy Deploy |
+
+Bật từng module một được (ví dụ chỉ `EMOTION_MODE=remote`, phần còn lại vẫn mock/Gemini). Đặt sai (thiếu URL, sai giá trị) thì Deploy báo đỏ và web giữ nguyên cấu hình cũ. Muốn tắt: đặt lại `mock` rồi chạy Deploy.
+
 ## Quy tắc import lười (lazy import)
 
 File trong `modules/` được import khi khởi động backend và trong notebook Colab. **Không import `torch`, `transformers`, `librosa`, `numpy`... ở đầu file.** Hãy import bên trong thân hàm, và tải mô hình một lần rồi cache:
