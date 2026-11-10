@@ -49,6 +49,20 @@ Thiết lập (đã làm):
 - `remote-deploy.sh` (thuộc root, user `deploy` không sửa được) chỉ nhận `deploy <commit-sha-40-ký-tự>` hoặc `status`. File compose được tải từ GitHub đúng commit đó, nên dù lộ key cũng chỉ deploy lại được các commit đã có trong repo.
 - Script lưu tag hiện tại vào `.tag`, tag trước vào `.tag-truoc`, và xoá image cũ của project (giữ 2 bản gần nhất).
 
+### Cấu hình LLM từ GitHub (khoá Gemini)
+
+Không cần SSH để đổi khoá: đặt ở GitHub → Settings → Environments → **production**:
+
+| Loại | Tên | Ví dụ |
+|---|---|---|
+| Secret | `GEMINI_API_KEY` | khoá lấy ở <https://aistudio.google.com/apikey> |
+| Variable | `LLM_MODE` | `gemini` (chỉ Gemini) hoặc `remote` (Colab, Gemini làm dự phòng) |
+| Variable | `GEMINI_MODEL` | `gemini-3.5-flash-lite` |
+
+Mỗi lần Deploy, workflow gửi các giá trị này qua **stdin của SSH** (không đặt trên dòng lệnh); `remote-deploy.sh` chỉ nhận đúng 3 tên trên, kiểm tra định dạng, ghi vào `.env` (bản cũ ở `.env.truoc`) và tạo lại container nếu `.env` đổi. Log chỉ in tên biến. Để trống một mục thì giá trị trên server được giữ nguyên. Sau khi sửa secret/variable, chạy lại **Actions → Deploy → Run workflow** để áp dụng.
+
+**Không bao giờ** ghi khoá vào file trong repo: repo public, khoá sẽ bị quét và thu hồi ngay. Xem cấu hình đang chạy (không lộ khoá): `ssh realestate-vm 'runuser -u deploy -- env SSH_ORIGINAL_COMMAND=status /opt/emotion-chatbot/remote-deploy.sh'`.
+
 Khi sửa `deploy/remote-deploy.sh` trong repo, cần cài lại bản trên server (server không tự cập nhật script này):
 
 ```bash

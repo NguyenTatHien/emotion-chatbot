@@ -12,7 +12,8 @@ git fetch --quiet origin main
 SHA="$(git rev-parse --verify "${1:-origin/main}^{commit}")"
 
 echo ">> Deploy commit ${SHA:0:7} lên ${HOST}"
-ssh "$HOST" "runuser -u deploy -- env SSH_ORIGINAL_COMMAND='deploy ${SHA}' /opt/emotion-chatbot/remote-deploy.sh"
+# -n: không chuyển stdin của máy bạn sang server (script phía server đọc stdin để nhận biến).
+ssh -n "$HOST" "runuser -u deploy -- env SSH_ORIGINAL_COMMAND='deploy ${SHA}' /opt/emotion-chatbot/remote-deploy.sh"
 
 echo ">> Kiểm tra sức khỏe https://${DOMAIN}/api/health"
 for i in $(seq 1 12); do
