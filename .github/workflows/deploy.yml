@@ -1,0 +1,94 @@
+name: Deploy
+
+# Tự triển khai lên realestate-vm sau khi workflow Images build xong commit trên main.
+# Rollback: Actions → Deploy → Run workflow → nhập SHA đầy đủ của commit cũ.
+on:
+  workflow_run:
+    workflows: [Images]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "SHA đầy đủ (40 ký tự) của commit cần deploy; để trống = commit mới nhất của main"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  APP_URL: https://emotion.hiennguyen.io.vn
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://emotion.hiennguyen.io.vn
+    steps:
+      - name: Chọn commit
+        id: target
+        env:
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_SHA: ${{ inputs.sha }}
+          DISPATCH_SHA: ${{ github.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            sha="${INPUT_SHA:-$DISPATCH_SHA}"
+          else
+            sha="$RUN_SHA"
+          fi
+          if ! printf '%s' "$sha" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::SHA không hợp lệ: $sha"
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Deploy commit ${sha:0:7} (image tag sha-${sha:0:7})" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cấu hình SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Triển khai trên server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 \
+            "$DEPLOY_USER@$DEPLOY_HOST" "deploy $SHA"
+
+      - name: Kiểm tra sức khỏe qua domain
+        run: |
+          for i in $(seq 1 12); do
+            if body="$(curl -fsS --max-time 10 "$APP_URL/api/health")"; then
+              echo "$body"
+              exit 0
+            fi
+            echo "Chưa sẵn sàng (lần $i/12), thử lại sau 5 giây..."
+            sleep 5
+          done
+          echo "::error::$APP_URL/api/health không phản hồi"
+          exit 1
+
+      - name: Xoá key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

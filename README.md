@@ -91,12 +91,12 @@ Mã nguồn được mount vào container và bật polling để nhận thay đ
 ## Kiến trúc triển khai
 
 ```
-push main ─▶ GitHub Actions (images.yml) ─▶ ghcr.io/nguyentathien/emotion-chatbot-{api,web}:sha-<7>/latest
-                                                         │ docker compose pull
+push main ─▶ images.yml ─▶ ghcr.io/nguyentathien/emotion-chatbot-{api,web}:sha-<7>/latest
+         └─▶ deploy.yml (SSH key bị khoá, chỉ chạy remote-deploy.sh) ─▶ docker compose pull + up
 Internet ─▶ javis-proxy (HTTPS) ─▶ web (Caddy) ─▶ backend (FastAPI)      trên realestate-vm
 ```
 
-CI (`ci.yml`) chạy `ruff` + `pytest` cho backend và `pnpm lint` + `pnpm test` + `pnpm build` cho frontend trên mọi pull request và push `main`. Server chỉ `pull` image build sẵn, chạy sau reverse proxy dùng chung với giới hạn bộ nhớ. Điều kiện trước, cách thử bằng subdomain test, triển khai, rollback và gỡ bỏ: xem [deploy/README.md](deploy/README.md).
+CI (`ci.yml`) chạy `ruff` + `pytest` cho backend và `pnpm lint` + `pnpm test` + `pnpm build` cho frontend trên mọi pull request và push `main`. Sau khi `images.yml` xong, `deploy.yml` tự triển khai lên https://emotion.hiennguyen.io.vn và kiểm tra `/api/health`. Server chỉ `pull` image build sẵn, chạy sau reverse proxy dùng chung với giới hạn bộ nhớ. Cấu hình secrets, deploy tay, rollback và gỡ bỏ: xem [deploy/README.md](deploy/README.md).
 
 ## Chạy backend
 

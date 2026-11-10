@@ -29,52 +29,52 @@ Internet ──443──▶ javis-proxy (HTTPS tự động)
 2. **Image đã có trên GHCR**: push lên `main` để `images.yml` chạy xong. GHCR package mới tạo mặc định là *private*. Chọn một trong hai:
    - Đặt hai package thành *public* (GitHub → Packages → từng package → Package settings → Change visibility). Image không chứa bí mật nên an toàn để public; hoặc
    - Trên server chạy `docker login ghcr.io` với Personal Access Token có quyền `read:packages`.
-3. **File `.env` trên server**, tạo tay một lần (không bao giờ copy từ máy dev):
+3. **Thư mục và `.env` trên server** (đã làm ngày 2026-11-10; `.env` đang ở chế độ mock): thư mục `/opt/emotion-chatbot` thuộc user `deploy` (nhóm docker), `.env` chế độ 600, tạo tay một lần theo `deploy/.env.server.example`, không bao giờ copy từ máy dev. Sửa `.env`:
    ```bash
    ssh realestate-vm
-   sudo mkdir -p /opt/emotion-chatbot && sudo chown "$USER" /opt/emotion-chatbot
-   cd /opt/emotion-chatbot
-   nano .env          # dựa theo deploy/.env.server.example
-   chmod 600 .env
+   sudo -u deploy nano /opt/emotion-chatbot/.env
    ```
-4. **SSH**: máy bạn có host `realestate-vm` trong `~/.ssh/config`, và tài khoản trên server dùng được `docker`.
+   Sau khi sửa, chạy lại workflow Deploy (hoặc `deploy/deploy.sh`) để container đọc giá trị mới.
+4. **SSH**: máy bạn có host `realestate-vm` trong `~/.ssh/config` (chỉ cần cho deploy tay).
 5. Mạng `javis-web` đã tồn tại trên server (`docker network ls | grep javis-web`).
 
-## Thử trước bằng subdomain test
+## Tự động triển khai (GitHub Actions)
 
-Nhãn caddy sai có thể làm `javis-proxy` từ chối cấu hình dùng chung và ảnh hưởng ứng dụng khác, nên **thử trước bằng một subdomain tạm**:
+Push lên `main` → workflow **Images** build và đẩy image `sha-<7 ký tự>` → workflow **Deploy** SSH vào server và chạy `remote-deploy.sh` → kiểm tra `https://emotion.hiennguyen.io.vn/api/health`.
 
-1. Thêm DNS `emotion-test.hiennguyen.io.vn` về cùng IP.
-2. Trên server, sao chép `docker-compose.prod.yml` sang thư mục tạm, đổi nhãn `caddy: emotion-test.hiennguyen.io.vn` rồi `up -d`.
-3. Xem log proxy ngay sau đó:
-   ```bash
-   docker logs --tail 50 -f javis-proxy
-   ```
-   Không được có dòng lỗi về cấu hình; chứng chỉ được cấp cho subdomain test.
-4. Mở `https://emotion-test.hiennguyen.io.vn`, thử chat; xong thì `docker compose down` và xóa DNS test.
+Thiết lập (đã làm):
 
-## Triển khai
+- Environment `production` trên GitHub, chỉ nhánh `main` được dùng, chứa secrets `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_HOST`, `DEPLOY_PORT`, `DEPLOY_USER`.
+- Key `github-actions-emotion-chatbot` trong `/home/deploy/.ssh/authorized_keys` có dạng `restrict,command="/opt/emotion-chatbot/remote-deploy.sh" ssh-ed25519 ...`: key này **chỉ** chạy được script deploy, không mở shell, không forward cổng.
+- `remote-deploy.sh` (thuộc root, user `deploy` không sửa được) chỉ nhận `deploy <commit-sha-40-ký-tự>` hoặc `status`. File compose được tải từ GitHub đúng commit đó, nên dù lộ key cũng chỉ deploy lại được các commit đã có trong repo.
+- Script lưu tag hiện tại vào `.tag`, tag trước vào `.tag-truoc`, và xoá image cũ của project (giữ 2 bản gần nhất).
 
-Từ thư mục gốc repo, trên máy bạn:
+Khi sửa `deploy/remote-deploy.sh` trong repo, cần cài lại bản trên server (server không tự cập nhật script này):
 
 ```bash
-deploy/deploy.sh              # dùng tag latest
-deploy/deploy.sh sha-1a2b3c4  # hoặc một commit cụ thể (khuyến nghị)
+scp deploy/remote-deploy.sh realestate-vm:/tmp/emotion-remote-deploy.sh
+ssh realestate-vm 'install -o root -g root -m 755 /tmp/emotion-remote-deploy.sh /opt/emotion-chatbot/remote-deploy.sh && rm /tmp/emotion-remote-deploy.sh'
 ```
 
-Script sẽ: `scp` file compose lên `/opt/emotion-chatbot/` → `docker compose pull` → `up -d` → gọi `https://emotion.hiennguyen.io.vn/api/health` (thử lại tối đa 10 lần). Có thể đổi host/thư mục/domain bằng biến `DEPLOY_HOST`, `DEPLOY_DIR`, `DEPLOY_DOMAIN`.
+Thu hồi quyền deploy của GitHub: xoá dòng có `github-actions-emotion-chatbot` trong `/home/deploy/.ssh/authorized_keys`.
 
-Sau khi chạy, xem log proxy một lần nữa: `ssh realestate-vm 'docker logs --tail 50 javis-proxy'`.
+## Triển khai tay
+
+Bình thường không cần: push lên `main` là tự deploy. Khi cần deploy tay từ máy bạn (ví dụ GitHub Actions đang lỗi):
+
+```bash
+deploy/deploy.sh            # commit mới nhất của origin/main
+deploy/deploy.sh 1a2b3c4    # hoặc một commit cụ thể
+```
+
+Script SSH bằng `realestate-vm` rồi chạy đúng `remote-deploy.sh` dưới user `deploy`, sau đó kiểm tra `/api/health` (thử lại tối đa 12 lần). Image của commit đó phải đã có trên GHCR.
 
 ## Rollback
 
-Chạy lại script với tag của phiên bản trước đó:
+- Trên GitHub: Actions → **Deploy** → Run workflow → nhập SHA đầy đủ (40 ký tự) của commit cũ.
+- Hoặc từ máy bạn: `deploy/deploy.sh <commit cũ>`.
 
-```bash
-deploy/deploy.sh sha-<commit cũ>
-```
-
-Danh sách tag có ở GitHub → Packages. Dữ liệu đánh giá nằm trong volume `emotion-data` nên không mất khi đổi image.
+Tag đang chạy nằm ở `/opt/emotion-chatbot/.tag`, tag trước đó ở `.tag-truoc`. Dữ liệu đánh giá nằm trong volume `emotion-data` nên không mất khi đổi image.
 
 ## Vận hành
 
