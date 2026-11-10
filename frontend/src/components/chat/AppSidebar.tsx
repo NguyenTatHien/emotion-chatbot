@@ -1,5 +1,4 @@
-import { Bot, MessageSquare, MessageSquarePlus, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Bot, MessageSquare, Plus, Trash2 } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -68,7 +67,7 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="offcanvas">
-      <SidebarHeader className="gap-3 p-3">
+      <SidebarHeader className="gap-2 p-3">
         <div className="flex items-center gap-2.5 px-1 pt-1">
           <div
             className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-(--user-bubble-from) to-(--user-bubble-to) text-white shadow-sm shadow-primary/25"
@@ -81,18 +80,27 @@ export function AppSidebar({
               {BOT_NAME}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              Lắng nghe và gợi ý nhạc theo cảm xúc
+              Gợi ý nhạc theo cảm xúc
             </p>
           </div>
         </div>
-        <Button
-          type="button"
-          onClick={after(onNew)}
-          className="h-11 w-full cursor-pointer justify-start gap-2 rounded-xl bg-linear-to-br from-(--user-bubble-from) to-(--user-bubble-to) px-3 text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35"
-        >
-          <MessageSquarePlus className="size-5" aria-hidden="true" />
-          Cuộc trò chuyện mới
-        </Button>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              type="button"
+              onClick={after(onNew)}
+              className="group/new h-11 cursor-pointer gap-3 rounded-xl px-2 text-[15px] font-medium transition-colors duration-200"
+            >
+              <span
+                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary transition-colors duration-200 group-hover/new:bg-primary group-hover/new:text-primary-foreground dark:bg-primary/25 dark:text-violet-200"
+                aria-hidden="true"
+              >
+                <Plus className="size-4" strokeWidth={2.5} />
+              </span>
+              <span>Cuộc trò chuyện mới</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
 
       <SidebarContent className="scroll-soft">
