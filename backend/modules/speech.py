@@ -26,10 +26,12 @@ def _get_asr():
     import torch
     from transformers import pipeline
 
+    # Chọn device như emotion/llm: cuda > mps (Apple Silicon) > cpu.
+    mps_ok = getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available()
     pipe = pipeline(
         "automatic-speech-recognition",
         model=_ASR_MODEL_NAME,
-        device=0 if torch.cuda.is_available() else -1,
+        device=0 if torch.cuda.is_available() else 0 if mps_ok else -1,
     )
     _ASR_STATE = {"pipe": pipe}
     return _ASR_STATE

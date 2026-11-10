@@ -53,20 +53,18 @@ def _load_model():
     else:
         device = "cpu"
 
-    try:
-        model = AutoModelForSequenceClassification.from_pretrained(_MODEL_NAME)
-    except Exception:  # pragma: no cover - network/quota errors, rơi về fallback
-        raise
+    model = AutoModelForSequenceClassification.from_pretrained(_MODEL_NAME)
 
     model.eval()
     model.to(device)
 
-    # Build mapping index -> nhãn chuẩn LABELS.
+    # Build mapping index -> nhãn chuẩn LABELS. id2label có thể lưu key
+    # int hoặc str ("0".."6") tùy cách checkpoint được serialize — tra cả hai.
     id2label = getattr(model.config, "id2label", None) or {}
     normalized = []
     unmatched = False
     for idx in range(int(getattr(model.config, "num_labels", len(LABELS)))):
-        raw = str(id2label.get(idx, "")) if idx in id2label else ""
+        raw = str(id2label.get(idx, id2label.get(str(idx), "")))
         name = _normalize_label(raw) if raw else ""
         if name in LABELS:
             normalized.append(name)
