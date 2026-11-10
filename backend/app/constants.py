@@ -8,6 +8,9 @@ MODULE_NAMES = ["emotion", "speech", "safety", "llm", "music"]
 
 MODES = ["mock", "local", "remote"]
 
+# Mode chỉ dành cho LLM: dùng Gemini API làm nguồn trả lời chính (không cần GPU/Colab).
+LLM_ONLY_MODES = ["gemini"]
+
 AROUSAL_LEVELS = ["low", "medium", "high"]
 
 MAX_MESSAGE_CHARS = 1000

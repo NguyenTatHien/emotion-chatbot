@@ -5,7 +5,7 @@ from functools import lru_cache
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.constants import MODES, MODULE_NAMES
+from app.constants import LLM_ONLY_MODES, MODES, MODULE_NAMES
 
 
 class Settings(BaseSettings):
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     MODEL_SERVER_URL: str = ""
     MODEL_SERVER_TOKEN: str = ""
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-3.6-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     ADMIN_TOKEN: str = ""
     FEEDBACK_PATH: str = "data/runtime/feedback.jsonl"
     SONGS_CSV: str = "data/songs.csv"
@@ -72,9 +72,10 @@ class Settings(BaseSettings):
             if info.field_name == "MODEL_MODE":
                 return "mock"
             return None
-        if value not in MODES:
+        allowed = MODES + LLM_ONLY_MODES if info.field_name == "LLM_MODE" else MODES
+        if value not in allowed:
             raise ValueError(
-                f"{info.field_name}='{value}' không hợp lệ; chỉ chấp nhận: {', '.join(MODES)}"
+                f"{info.field_name}='{value}' không hợp lệ; chỉ chấp nhận: {', '.join(allowed)}"
             )
         return value
 
@@ -94,6 +95,8 @@ class Settings(BaseSettings):
                     f"{name.upper()}_MODE=remote không được hỗ trợ: module '{name}' "
                     "luôn chạy trong backend (mock hoặc local)."
                 )
+        if self.module_mode("llm") == "gemini" and not self.GEMINI_API_KEY.strip():
+            raise ValueError("LLM_MODE=gemini nhưng GEMINI_API_KEY đang trống.")
         remote = [n for n in MODULE_NAMES if self.module_mode(n) == "remote"]
         if remote and not self.MODEL_SERVER_URL.strip():
             raise ValueError(

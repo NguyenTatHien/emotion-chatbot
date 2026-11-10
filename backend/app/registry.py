@@ -49,6 +49,12 @@ def mode_of(name: str) -> str:
     return get_settings().module_mode(name)
 
 
+def llm_backend_name() -> str:
+    """Tên nguồn trả lời khi LLM đang chọn chạy thành công: mock | gemini | qwen."""
+    mode = mode_of("llm")
+    return mode if mode in ("mock", "gemini") else "qwen"
+
+
 def get(name: str, func: str | None = None) -> Callable:
     """Trả callable của module `name` theo mode hiện hành (hoặc bản override trong test)."""
     func = _resolve_func(name, func)
@@ -56,6 +62,10 @@ def get(name: str, func: str | None = None) -> Callable:
         return _overrides[(name, func)]
 
     mode = mode_of(name)
+    if mode == "gemini":  # chỉ LLM_MODE nhận giá trị này (đã kiểm ở config)
+        from app import gemini
+
+        return gemini.generate_reply
     if mode == "remote":
         if name not in REMOTE_FUNCS:
             raise RemoteNotConfigured(f"Module '{name}' không hỗ trợ mode remote")

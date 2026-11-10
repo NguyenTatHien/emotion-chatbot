@@ -91,7 +91,7 @@ def test_gemini_timeout_and_empty_response_fall_back(client, remote_llm, net):
 
 def test_no_gemini_key_goes_straight_to_canned(client, set_env, net):
     set_env(MODEL_SERVER_URL=URL, LLM_MODE="remote")
-    gemini = net.post(GEMINI_URL.format("gemini-3.6-flash")).respond(200, json=GEMINI_OK)
+    gemini = net.post(GEMINI_URL.format("gemini-3.5-flash-lite")).respond(200, json=GEMINI_OK)
     body = chat(client)
     assert body["meta"]["llm_backend"] == "canned"
     assert body["meta"]["degraded"] is True
@@ -103,3 +103,56 @@ def test_safety_turn_never_calls_llm(client, remote_llm, net):
     body = chat(client, "mình muốn chết")
     assert body["safety"] is True
     assert not gemini.called
+
+
+# --- LLM_MODE=gemini: Gemini là nguồn chính, không coi là dự phòng ---
+
+
+@pytest.fixture
+def gemini_mode(set_env):
+    set_env(LLM_MODE="gemini", GEMINI_API_KEY=KEY, GEMINI_MODEL="gem-test")
+
+
+def test_gemini_mode_is_primary_not_degraded(client, gemini_mode):
+    with respx.mock(assert_all_called=True) as mock:
+        route = mock.post(GEMINI_URL.format("gem-test")).respond(200, json=GEMINI_OK)
+        body = chat(client)
+    assert body["reply"] == "Mình nghe bạn đây. Bạn kể thêm nhé?"
+    assert body["meta"]["llm_backend"] == "gemini"
+    assert body["meta"]["degraded"] is False
+    assert body["meta"]["warnings"] == []
+    assert body["meta"]["modules"]["llm"] == "gemini"
+    assert route.call_count == 1
+
+
+def test_gemini_mode_failure_goes_to_canned_without_second_call(client, gemini_mode):
+    with respx.mock() as mock:
+        route = mock.post(GEMINI_URL.format("gem-test")).respond(429, json={})
+        body = chat(client)
+    assert route.call_count == 1
+    assert body["meta"]["llm_backend"] == "canned"
+    assert body["meta"]["degraded"] is True
+    assert body["reply"] in fallbacks.CANNED_REPLIES.values()
+
+
+def test_meta_reports_gemini(client, gemini_mode):
+    body = client.get("/api/meta").json()
+    assert body["llm_backend"] == "gemini"
+    assert body["modules"]["llm"] == "gemini"
+    assert client.get("/api/health").json()["model_server"] == "n/a"
+
+
+def test_gemini_mode_requires_key(set_env):
+    from app.config import get_settings
+
+    set_env(LLM_MODE="gemini", GEMINI_API_KEY="")
+    with pytest.raises(ValueError, match="GEMINI_API_KEY"):
+        get_settings().validate_remote()
+
+
+@pytest.mark.parametrize("field", ["MODEL_MODE", "EMOTION_MODE", "MUSIC_MODE"])
+def test_gemini_only_valid_for_llm(set_env, field):
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="không hợp lệ"):
+        set_env(**{field: "gemini"})

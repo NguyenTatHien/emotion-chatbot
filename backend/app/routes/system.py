@@ -28,7 +28,7 @@ async def meta() -> MetaResponse:
         goals=GOALS,
         modules={n: registry.mode_of(n) for n in MODULE_NAMES},
         model_mode=settings.MODEL_MODE,
-        llm_backend="mock" if registry.mode_of("llm") == "mock" else "qwen",
+        llm_backend=registry.llm_backend_name(),
     )
 
 

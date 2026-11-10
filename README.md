@@ -136,14 +136,14 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 | Biến | Mặc định | Ý nghĩa |
 |---|---|---|
 | `MODEL_MODE` | `mock` | Mode chung cho mọi module: `mock` \| `local` \| `remote` |
-| `EMOTION_MODE`, `SPEECH_MODE`, `SAFETY_MODE`, `LLM_MODE`, `MUSIC_MODE` | trống | Ghi đè mode cho từng module |
+| `EMOTION_MODE`, `SPEECH_MODE`, `SAFETY_MODE`, `LLM_MODE`, `MUSIC_MODE` | trống | Ghi đè mode cho từng module; riêng `LLM_MODE` nhận thêm `gemini` |
 | `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Origin được phép gọi API |
 | `HISTORY_TURNS` | `6` | Số lượt gần nhất truyền cho LLM |
 | `MOCK_LATENCY_MS` | `0` | Giả độ trễ cho mock |
 | `SAFETY_HOTLINE_TEXT` | trống | Dòng hỗ trợ thêm vào thông điệp an toàn |
 | `MODEL_SERVER_URL`, `MODEL_SERVER_TOKEN` | trống | URL và bí mật dùng chung của model server (bắt buộc URL khi có module remote) |
 | `REMOTE_TIMEOUT_EMOTION/TRANSCRIBE/PROSODY/GENERATE` | `10/20/10/30` | Timeout (giây) từng lời gọi tới model server |
-| `GEMINI_API_KEY`, `GEMINI_MODEL` | trống, `gemini-3.6-flash` | Dự phòng Gemini; trống khoá = bỏ bước này |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | trống, `gemini-3.5-flash-lite` | Nguồn chính khi `LLM_MODE=gemini`, dự phòng khi Qwen lỗi; trống khoá = bỏ bước này |
 | `FEEDBACK_PATH`, `ADMIN_TOKEN` | `data/runtime/feedback.jsonl`, trống | File đánh giá; trống `ADMIN_TOKEN` = route export trả 404 |
 
 | `MAX_AUDIO_SECONDS`, `MAX_AUDIO_MB` | `30`, `5` | Giới hạn bản ghi; vượt thì trả HTTP 413 |
@@ -161,9 +161,9 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 
 ### Chuỗi dự phòng LLM
 
-Thứ tự: implementation `llm` theo mode → Gemini (nếu có `GEMINI_API_KEY`) → câu soạn sẵn theo nhãn. `meta.llm_backend` là nguồn thực sự đã trả lời: `mock`, `qwen`, `gemini` hoặc `canned`; mỗi bước hỏng thêm một cảnh báo vào `meta.warnings` và đặt `degraded=true`. Gemini được gọi qua REST `generateContent` (không dùng SDK), khoá chỉ nằm trong header `x-goog-api-key` và không bao giờ xuất hiện trong log hay phản hồi.
+Thứ tự: implementation `llm` theo mode → Gemini (nếu có `GEMINI_API_KEY`) → câu soạn sẵn theo nhãn. Với `LLM_MODE=gemini`, Gemini là nguồn chính (`llm_backend=gemini`, không bị tính là dự phòng) và lỗi thì rơi thẳng xuống câu soạn sẵn; khởi động sẽ báo lỗi nếu thiếu `GEMINI_API_KEY`. `meta.llm_backend` là nguồn thực sự đã trả lời: `mock`, `qwen`, `gemini` hoặc `canned`; mỗi bước hỏng thêm một cảnh báo vào `meta.warnings` và đặt `degraded=true`. Gemini được gọi qua REST `generateContent` (không dùng SDK), khoá chỉ nằm trong header `x-goog-api-key` và không bao giờ xuất hiện trong log hay phản hồi.
 
-Model mặc định `gemini-3.6-flash` là model "Stable" dòng Flash trong danh sách model của Google AI tại <https://ai.google.dev/gemini-api/docs/models> (trang chuyển hướng tới <https://aistudio.google.com/docs/models>), kiểm tra ngày 10/11/2026. Muốn đổi model chỉ cần sửa `GEMINI_MODEL`; lỗi tên model chỉ làm rơi xuống câu soạn sẵn.
+Model mặc định `gemini-3.5-flash-lite` (dòng Flash-Lite trong danh sách model của Google AI tại <https://ai.google.dev/gemini-api/docs/models>, kiểm tra ngày 10/11/2026) được chọn vì hạn mức gói miễn phí rộng hơn các bản Flash; muốn câu trả lời tốt hơn thì dùng `gemini-3.8-flash` nhưng ít lượt miễn phí hơn. Hạn mức thật xem trong AI Studio. **Gói miễn phí có thể được Google dùng để cải thiện sản phẩm**: báo trước cho người dùng thử. Muốn đổi model chỉ cần sửa `GEMINI_MODEL`; lỗi tên model chỉ làm rơi xuống câu soạn sẵn.
 
 ### Đánh giá của người dùng thử (cho Người 5)
 

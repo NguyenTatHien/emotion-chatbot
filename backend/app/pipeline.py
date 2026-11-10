@@ -77,6 +77,8 @@ async def generate_with_fallback(
 ) -> tuple[str, str, list[str]]:
     """Sinh câu trả lời: implementation llm đang chọn -> Gemini (nếu có khoá) -> soạn sẵn.
 
+    Với LLM_MODE=gemini, Gemini chính là implementation đang chọn nên không gọi lại lần hai.
+
     Trả (reply, nguồn thực tế, cảnh báo). Nguồn: mock | qwen | gemini | canned.
     """
     settings = get_settings()
@@ -93,11 +95,10 @@ async def generate_with_fallback(
         timeout=settings.module_timeout("llm"),
     )
     if warn is None and isinstance(result, str) and result.strip():
-        backend = "mock" if registry.mode_of("llm") == "mock" else "qwen"
-        return result.strip(), backend, warnings
+        return result.strip(), registry.llm_backend_name(), warnings
     warnings.append(warn or "llm: kết quả rỗng, dùng dự phòng")
 
-    if settings.GEMINI_API_KEY.strip():
+    if settings.GEMINI_API_KEY.strip() and registry.mode_of("llm") != "gemini":
         result, warn = await try_call(
             "gemini",
             gemini.generate_reply,
