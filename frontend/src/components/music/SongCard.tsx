@@ -1,8 +1,8 @@
 import { useState } from "react"
-import { ExternalLink, Music, Play } from "lucide-react"
+import { ExternalLink, Maximize2, Music, Play } from "lucide-react"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import type { Song } from "@/lib/api"
-import { embedUrl, extractVideoId, thumbnailUrl, watchUrl } from "@/lib/youtube"
+import { extractVideoId, thumbnailUrl, watchUrl } from "@/lib/youtube"
 
 /** Ảnh thay thế: gradient theo màu cảm xúc hiện tại (--mood kế thừa từ ChatView). */
 function Fallback() {
@@ -16,9 +16,14 @@ function Fallback() {
 /** YouTube trả ảnh xám 120x90 thay vì lỗi khi video không có ảnh bìa. */
 const PLACEHOLDER_MAX_WIDTH = 120
 
-export function SongCard({ song }: { song: Song }) {
+interface SongCardProps {
+  song: Song
+  /** Mở popup trình phát (chỉ với bài có video YouTube). */
+  onPlay?: () => void
+}
+
+export function SongCard({ song, onPlay }: SongCardProps) {
   const id = extractVideoId(song.youtube_url)
-  const [playing, setPlaying] = useState(false)
   const [thumbFailed, setThumbFailed] = useState(false)
   const openUrl = id ? watchUrl(id) : song.youtube_url
 
@@ -27,43 +32,36 @@ export function SongCard({ song }: { song: Song }) {
       ratio={16 / 9}
       className="overflow-hidden rounded-xl bg-linear-to-br from-[color-mix(in_oklch,var(--mood)_65%,var(--card))] to-[color-mix(in_oklch,var(--aurora-accent)_45%,var(--card))]"
     >
-      {id && playing ? (
-        <iframe
-          src={embedUrl(id)}
-          title={`Phát bài ${song.title}`}
-          className="size-full border-0"
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowFullScreen
+      {id && !thumbFailed ? (
+        <img
+          src={thumbnailUrl(id)}
+          alt={`Ảnh bìa bài ${song.title}`}
+          loading="lazy"
+          onError={() => setThumbFailed(true)}
+          onLoad={(e) => {
+            if (e.currentTarget.naturalWidth <= PLACEHOLDER_MAX_WIDTH) {
+              setThumbFailed(true)
+            }
+          }}
+          className="size-full object-cover"
         />
       ) : (
-        <>
-          {id && !thumbFailed ? (
-            <img
-              src={thumbnailUrl(id)}
-              alt={`Ảnh bìa bài ${song.title}`}
-              loading="lazy"
-              onError={() => setThumbFailed(true)}
-              onLoad={(e) => {
-                if (e.currentTarget.naturalWidth <= PLACEHOLDER_MAX_WIDTH) {
-                  setThumbFailed(true)
-                }
-              }}
-              className="size-full object-cover"
-            />
-          ) : (
-            <Fallback />
-          )}
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/10 transition-colors duration-200 group-hover/song:bg-black/25">
-            <span className="flex size-11 items-center justify-center rounded-full bg-white/90 text-primary shadow-lg backdrop-blur transition-transform duration-200 group-hover/song:scale-110">
-              {id ? (
-                <Play className="size-5" aria-hidden="true" />
-              ) : (
-                <ExternalLink className="size-5" aria-hidden="true" />
-              )}
-            </span>
-          </span>
-        </>
+        <Fallback />
       )}
+      <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/10 transition-colors duration-200 group-hover/song:bg-black/25">
+        <span className="flex size-11 items-center justify-center rounded-full bg-white/90 text-primary shadow-lg backdrop-blur transition-transform duration-200 group-hover/song:scale-110">
+          {id ? (
+            <Play className="size-5" aria-hidden="true" />
+          ) : (
+            <ExternalLink className="size-5" aria-hidden="true" />
+          )}
+        </span>
+      </span>
+      {id ? (
+        <span className="pointer-events-none absolute top-2 right-2 flex size-7 items-center justify-center rounded-full bg-black/45 text-white opacity-0 backdrop-blur transition-opacity duration-200 group-hover/song:opacity-100">
+          <Maximize2 className="size-3.5" aria-hidden="true" />
+        </span>
+      ) : null}
     </AspectRatio>
   )
 
@@ -72,12 +70,10 @@ export function SongCard({ song }: { song: Song }) {
       className="group/song flex w-60 shrink-0 snap-start flex-col gap-2 rounded-2xl border border-border/70 bg-card/80 p-2 text-card-foreground shadow-sm backdrop-blur transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-md hover:shadow-primary/10 md:w-full"
       aria-label={`${song.title} - ${song.artist}`}
     >
-      {id && playing ? (
-        media
-      ) : id ? (
+      {id ? (
         <button
           type="button"
-          onClick={() => setPlaying(true)}
+          onClick={onPlay}
           aria-label={`Nghe bài ${song.title}`}
           className="relative block w-full cursor-pointer rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >

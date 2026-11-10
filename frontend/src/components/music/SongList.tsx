@@ -1,7 +1,11 @@
+import { useState } from "react"
 import type { Song } from "@/lib/api"
 import { SongCard } from "./SongCard"
+import { SongPlayerDialog } from "./SongPlayerDialog"
 
 export function SongList({ songs }: { songs: Song[] }) {
+  // Bài đang mở trong popup trình phát; null = đóng.
+  const [playing, setPlaying] = useState<number | null>(null)
   if (songs.length === 0) return null
   return (
     <section aria-label="Bài hát gợi ý" className="w-full max-w-full min-w-0">
@@ -11,10 +15,15 @@ export function SongList({ songs }: { songs: Song[] }) {
             key={`${song.youtube_url}-${i}`}
             className="flex shrink-0 md:min-w-0"
           >
-            <SongCard song={song} />
+            <SongCard song={song} onPlay={() => setPlaying(i)} />
           </li>
         ))}
       </ul>
+      <SongPlayerDialog
+        songs={songs}
+        index={playing}
+        onIndexChange={setPlaying}
+      />
     </section>
   )
 }

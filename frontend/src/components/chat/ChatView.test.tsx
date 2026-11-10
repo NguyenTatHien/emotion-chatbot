@@ -188,13 +188,14 @@ describe("ChatView", () => {
     )
     expect(thumb).toHaveAttribute("loading", "lazy")
     await user.click(play)
-    const iframe = container.querySelector("iframe")
-    expect(iframe).not.toBeNull()
-    expect(iframe?.getAttribute("src")).toContain(
+    // Bấm thẻ mở popup trình phát (dialog nằm trong portal ngoài container).
+    const dialog = await screen.findByRole("dialog", { name: "Bài thử" })
+    const iframe = within(dialog).getByTitle("Phát bài Bài thử")
+    expect(iframe.getAttribute("src")).toContain(
       "https://www.youtube-nocookie.com/embed/abc123"
     )
     expect(
-      screen.getByRole("link", { name: /Mở trên YouTube/ })
+      within(dialog).getByRole("link", { name: /Mở trên YouTube/ })
     ).toHaveAttribute("href", "https://www.youtube.com/watch?v=abc123")
   })
 
