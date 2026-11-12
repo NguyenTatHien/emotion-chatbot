@@ -14,7 +14,8 @@ interface BotMessageProps {
 }
 
 export function BotMessage({ message, onRate }: BotMessageProps) {
-  const { text } = useTypewriter(message.text, message.fresh === true)
+  const fresh = message.fresh === true
+  const { text, done } = useTypewriter(message.text, fresh)
   return (
     <Message>
       <MessageAvatar>
@@ -30,8 +31,11 @@ export function BotMessage({ message, onRate }: BotMessageProps) {
             </BubbleContent>
           </Bubble>
         )}
-        {!message.safety ? <SongList songs={message.songs} /> : null}
-        {!message.safety && message.turnId && onRate ? (
+        {/* Tin vừa nhận: chữ gõ xong mới hiện bài hát và nút đánh giá (trượt vào lần lượt). */}
+        {!message.safety && done ? (
+          <SongList songs={message.songs} animate={fresh} />
+        ) : null}
+        {!message.safety && done && message.turnId && onRate ? (
           <FeedbackButtons
             rating={message.rating}
             onRate={(rating) => onRate(message.id, rating)}
