@@ -46,9 +46,16 @@ F1 từng lớp: Enjoyment **0.766**, Sadness 0.761, Disgust 0.633, Fear 0.652, 
 | **v3 — raw Qwen local, greedy (temperature 0), verbalizer VI+EN** | **0.5133** | **0.4505** | **hợp lệ**: parse 150/150, phân bố đủ 7 nhãn |
 | Majority-baseline (always-Enjoyment) | 0.2667 | — | mốc tham chiếu |
 
-### 2.3 Kết luận
+### 2.3 So sánh với các mốc tham chiếu ngoài
 
-1. **Fine-tuned chuyên biệt vượt LLM tổng quát zero-shot trong miền hẹp** (+0.17 macro-F1: 0.6209 vs 0.4505) — cả hai đều vượt majority-baseline.
+- Baseline CNN của paper UIT-VSMEC gốc (PACLING 2019): ~57.6% F1 → CafeBERT (0.6681 acc / 0.6209 macro-F1) vượt +5 điểm.
+- ViSoBERT (model mạnh hơn, fine-tuned cùng dataset): ~66% [nguồn: github dinhthienan33/RecognitionEmotion-for-Vietnamese-Social-Media] — CafeBERT nằm trong vùng chuẩn của BERT-based fine-tune trên 7 nhãn.
+- E4 (macro-F1 ~0.45) gấp ~2× majority-baseline (0.267) — mức hợp lý của LLM tổng quát chưa tune trên domain niche; khoảng tin cậy rộng (~±0.05) do n=150, nên so sánh theo "khoảng 0.45" chứ không số tuyệt đối.
+
+### 2.4 Kết luận
+
+1. **Fine-tuned chuyên biệt vượt LLM tổng quát zero-shot trong miền hẹp** (+0.17 macro-F1: 0.6209 vs 0.4505, tức 2.3× majority-baseline) — macro-F1 mục tiêu "đạt" ở biên dưới (0.6209 ∈ [0.620, 0.634], không vượt).
+2. Model mạnh nhất trên 2 nhãn cốt lõi của sản phẩm chatbot: Sadness F1 0.761 và Enjoyment F1 0.766 — đủ tốt cho mục đích ứng dụng; hạn chế tập trung ở lớp thiểu số (Anger 40 mẫu, F1 0.394).
 2. **Protocol quyết định số đo**: v1/v2 → v3 (0.059 → 0.4505 macro-F1) chỉ nhờ sửa protocol (bỏ wrapper, decoding deterministic, verbalizer song ngữ). Kết quả zero-shot công bố trên LLM generation tự do cần kiểm tra cấu hình sampling/wrapper — kết luận có căn cứ:
    - *Tunstall, von Werra, Wolf — NLP with Transformers (O'Reilly 2022), tr.265–271*: tên nhãn có ngữ nghĩa quyết định độ chính xác zero-shot; hypothesis template nhạy cảm.
    - *Alammar, Grootendorst — Hands-On Large Language Models (O'Reilly 2024), tr.195*: output classification cần constrain trong sampling process, chịu ảnh hưởng `temperature`/`top_p`.
