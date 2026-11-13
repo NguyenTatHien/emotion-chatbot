@@ -68,3 +68,18 @@ def test_safe_reply_has_no_tag():
     from app.music_tag import split_music_tag
 
     assert split_music_tag(llm._SAFE_REPLY) == (llm._SAFE_REPLY, None)
+
+
+def test_emotion_note_in_vietnamese_with_probability():
+    built = llm._build_messages(
+        "mình phân vân quá", {"label": "Other", "probs": {"Other": 0.73}}, "", [], None
+    )
+    assert "Bình thường (73%)" in built[0]["content"]
+    assert "Vui vẻ" in llm._emotion_note("Enjoyment")
+
+
+def test_rules_have_listen_first_and_examples():
+    system = msgs([])[0]["content"]
+    assert "lần đầu kể một chuyện" in system
+    assert '"mình đang phân vân về đề án tốt nghiệp" → [NHAC:KHONG]' in system
+    assert "lượt thứ 3, hai lượt trước đều buồn" in system

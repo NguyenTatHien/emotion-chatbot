@@ -32,13 +32,21 @@ _CONTEXT_MARKER = "[BỐI CẢNH"
 
 # Luật thẻ nhạc (backend tách thẻ khỏi câu trả lời).
 _MUSIC_TAG_RULES = (
-    "Dòng đầu tiên của câu trả lời bắt buộc là [NHAC:CO] hoặc [NHAC:KHONG], "
-    "sau đó xuống dòng rồi mới trả lời. "
-    "[NHAC:CO] khi người dùng muốn nghe nhạc / hỏi bài hát, hoặc đang buồn, lo âu, "
-    "căng thẳng kéo dài và nghe nhạc có thể giúp họ dịu lại; không chọn CO nếu vừa gợi ý "
-    "nhạc ở lượt ngay trước hoặc người dùng đã nói không muốn nghe nhạc. "
-    "[NHAC:KHONG] với chào hỏi, cảm ơn, hỏi thông tin, trò chuyện thường, "
-    "hoặc khi đang kể dở chuyện. "
+    "\nDòng đầu tiên của câu trả lời bắt buộc là [NHAC:CO] hoặc [NHAC:KHONG], "
+    "sau đó xuống dòng rồi mới trả lời.\n"
+    "Chọn [NHAC:CO] chỉ khi:\n"
+    "(1) người dùng xin nghe nhạc, hỏi bài hát hoặc nhờ gợi ý bài; hoặc\n"
+    "(2) người dùng đã buồn, lo sợ hoặc tức giận rõ rệt ở ít nhất 2 lượt gần đây "
+    "(tính cả lượt hiện tại) và lượt ngay trước chưa được gợi ý nhạc.\n"
+    "Mọi trường hợp khác chọn [NHAC:KHONG], nhất là: lượt đầu tiên; lần đầu kể một chuyện "
+    "(hãy lắng nghe trước); cảm xúc Bình thường hoặc Vui vẻ; chào hỏi, cảm ơn, hỏi thông tin; "
+    "người dùng đã nói không muốn nghe nhạc.\n"
+    "Nếu đầu lịch sử không có ghi chú của hệ thống thì đây là lượt đầu tiên.\n"
+    "Ví dụ:\n"
+    '"chào bạn" → [NHAC:KHONG]\n'
+    '"mình đang phân vân về đề án tốt nghiệp" → [NHAC:KHONG]\n'
+    '"có bài nào nghe cho vui không" → [NHAC:CO]\n'
+    'lượt thứ 3, hai lượt trước đều buồn: "mình sợ rớt môn lắm, chán ghê" → [NHAC:CO]\n'
     "Không nhắc tới thẻ này hay tự liệt kê bài hát trong câu trả lời. "
     "Chỉ viết lời nói trực tiếp với người dùng, không viết nhận xét hay tóm tắt về họ."
 )
@@ -46,10 +54,23 @@ _MUSIC_TAG_RULES = (
 # Chỉ thêm khi lịch sử thật sự mở đầu bằng ghi chú bối cảnh: nhắc tới nhãn ở mọi lượt khiến
 # Qwen chép lại nhãn `[BỐI CẢNH ...]` và tự viết "tóm tắt" vào câu trả lời.
 _CONTEXT_NOTE = (
-    "Tin nhắn đầu tiên trong lịch sử là ghi chú của hệ thống tóm tắt các lượt trước, "
-    "không phải lời người dùng. Chỉ dùng nó để hiểu bối cảnh; không chép lại, không nhắc tới "
-    "và không tự viết tóm tắt trong câu trả lời."
+    "Tin nhắn đầu tiên trong lịch sử là ghi chú của hệ thống (lượt thứ mấy, cảm xúc các lượt "
+    "gần đây, lần gợi ý nhạc gần nhất, tóm tắt), không phải lời người dùng. Dùng nó để chọn thẻ "
+    "nhạc và hiểu bối cảnh; không chép lại, không nhắc tới và không tự viết tóm tắt trong câu "
+    "trả lời."
 )
+
+# Tên tiếng Việt của nhãn cảm xúc (khớp backend `app/constants.py` và frontend), để luật thẻ
+# nhạc ("Bình thường", "Vui vẻ", "buồn"...) khớp với chữ mô hình thấy trong prompt.
+_LABELS_VI = {
+    "Anger": "Tức giận",
+    "Disgust": "Khó chịu",
+    "Enjoyment": "Vui vẻ",
+    "Fear": "Lo sợ",
+    "Other": "Bình thường",
+    "Sadness": "Buồn",
+    "Surprise": "Ngạc nhiên",
+}
 
 _GOAL_HINTS = {
     "xoa_diu": "Lời khuyên: trấn an, nhẹ nhàng, đồng hành.",
@@ -102,6 +123,18 @@ def _emotion_label(emotion: object) -> str:
     return str(emotion or "Other")
 
 
+def _emotion_note(emotion: object) -> str:
+    """'Bình thường (73%)': tên tiếng Việt của nhãn kèm xác suất của nhãn đó (nếu có)."""
+    label = _emotion_label(emotion)
+    name = _LABELS_VI.get(label, label)
+    probs = emotion.get("probs") if isinstance(emotion, dict) else None
+    prob = (probs or {}).get(label)
+    try:
+        return f"{name} ({float(prob):.0%})" if prob is not None else name
+    except (TypeError, ValueError):
+        return name
+
+
 def _limit_history(history: list[dict]) -> list[dict]:
     """Chỉ chặn trần theo số tin; luôn giữ cặp tin bối cảnh đầu nếu có."""
     if len(history) <= _MAX_HISTORY_MESSAGES:
@@ -127,14 +160,14 @@ def _build_messages(
         "không dùng markdown, không nhắc bạn là AI. "
         + _MUSIC_TAG_RULES
     )
-    emotion_desc = f"Hệ thống phát hiện cảm xúc: {_emotion_label(emotion)}."
+    emotion_desc = f"Cảm xúc lượt hiện tại (hệ thống đo): {_emotion_note(emotion)}."
     if arousal:
         emotion_desc += f" Mức năng lượng giọng nói: {arousal}."
     goal_desc = _GOAL_HINTS.get(str(goal), "")
     limited = _limit_history(history or [])
     first = str((limited[0] or {}).get("content") or "") if limited else ""
     context_note = _CONTEXT_NOTE if first.lstrip().startswith(_CONTEXT_MARKER) else ""
-    system = " ".join(x for x in [system, context_note, emotion_desc, goal_desc] if x)
+    system = "\n".join(x for x in [system, context_note, emotion_desc, goal_desc] if x)
 
     msgs = [{"role": "system", "content": system}]
     for turn in limited:

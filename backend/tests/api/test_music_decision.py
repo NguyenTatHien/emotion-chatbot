@@ -149,7 +149,8 @@ def test_tag_never_reaches_stored_reply_or_next_history(client):
     first = post(client, message="một").json()
     post(client, message="hai")
     assert first["reply"] == "Mình nghe bạn."
-    assert seen[1][1] == {"role": "assistant", "content": "Mình nghe bạn."}
+    assert seen[1][3] == {"role": "assistant", "content": "Mình nghe bạn."}  # sau cặp bối cảnh
+    assert all("[NHAC" not in m["content"] and "nhạc :" not in m["content"] for m in seen[1])
     assert first["meta"]["music_decision"] == "llm_no"  # thẻ đầu tiên quyết định
 
 

@@ -2,6 +2,17 @@
 
 LABELS = ["Anger", "Disgust", "Enjoyment", "Fear", "Other", "Sadness", "Surprise"]
 
+# Tên tiếng Việt của nhãn, khớp với frontend (`src/lib/emotion-meta.ts`).
+LABELS_VI = {
+    "Anger": "Tức giận",
+    "Disgust": "Khó chịu",
+    "Enjoyment": "Vui vẻ",
+    "Fear": "Lo sợ",
+    "Other": "Bình thường",
+    "Sadness": "Buồn",
+    "Surprise": "Ngạc nhiên",
+}
+
 GOALS = ["xoa_diu", "nang_mood", "tap_trung", "giai_toa"]
 
 MODULE_NAMES = ["emotion", "speech", "safety", "llm", "music"]

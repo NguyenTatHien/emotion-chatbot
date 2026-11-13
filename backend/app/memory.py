@@ -1,6 +1,7 @@
 """Bộ nhớ hội thoại trong một cuộc trò chuyện: dựng `history` cho LLM và tóm tắt nền.
 
-`history` gửi LLM gồm (1) cặp tin bối cảnh (bản tóm tắt + hồ sơ nhạc), chỉ khi có nội dung,
+`history` gửi LLM gồm (1) cặp tin bối cảnh (dữ kiện: lượt thứ mấy, cảm xúc các lượt gần đây,
+lần gợi ý nhạc gần nhất; cộng bản tóm tắt và hồ sơ nhạc nếu có), có từ lượt thứ hai trở đi,
 rồi (2) các lượt chưa được tóm tắt, nguyên văn. Backend là nơi duy nhất quyết định độ dài.
 Tóm tắt chạy ở nền bằng Gemini, sau khi đã trả lời người dùng; lỗi chỉ ghi log.
 """
@@ -10,6 +11,7 @@ import logging
 
 from app import gemini
 from app.config import get_settings
+from app.constants import LABELS_VI
 from app.schemas import SessionTurn
 from app.session import MemorySnapshot, SessionState, store
 
@@ -17,10 +19,11 @@ logger = logging.getLogger("emotion_chatbot.memory")
 
 CONTEXT_MARKER = "[BỐI CẢNH CUỘC TRÒ CHUYỆN"
 CONTEXT_HEADER = (
-    f"{CONTEXT_MARKER} — tóm tắt các lượt trước, không phải tin nhắn mới]"
+    f"{CONTEXT_MARKER} — ghi chú của hệ thống về các lượt trước, không phải tin nhắn mới]"
 )
 CONTEXT_ACK = "Mình nhớ rồi."
 MAX_MUSIC_PROFILE_TURNS = 5
+RECENT_EMOTION_TURNS = 3
 
 _RATING_VI = {"up": "thích", "down": "không thích"}
 
@@ -43,15 +46,47 @@ def _music_profile(snap: MemorySnapshot) -> str:
     return "; ".join(parts)
 
 
+def _recent_emotions(snap: MemorySnapshot) -> str:
+    """Cảm xúc CafeBERT của vài lượt gần nhất, để LLM biết buồn đã kéo dài hay chưa."""
+    parts = []
+    for i, turn in list(enumerate(snap.turns))[-RECENT_EMOTION_TURNS:]:
+        number = snap.first_index + i + 1
+        if turn.safety:
+            label = "nội dung nhạy cảm"
+        elif turn.emotion is None:
+            continue
+        else:
+            label = LABELS_VI.get(turn.emotion.label, turn.emotion.label)
+        parts.append(f"lượt {number} {label}")
+    return "; ".join(parts)
+
+
+def _facts(snap: MemorySnapshot) -> list[str]:
+    """Dữ kiện do backend tự đếm; LLM dùng để quyết định thẻ nhạc."""
+    facts = [f"Tin nhắn sắp tới là lượt thứ {snap.total + 1} của người dùng."]
+    emotions = _recent_emotions(snap)
+    if emotions:
+        facts.append(f"Cảm xúc các lượt gần đây: {emotions}.")
+    music_turns = [snap.first_index + i + 1 for i, t in enumerate(snap.turns) if t.songs]
+    if music_turns:
+        last = music_turns[-1]
+        facts.append(
+            f"Lượt gần nhất có gợi ý nhạc: lượt {last} (cách đây {snap.total + 1 - last} lượt)."
+        )
+    else:
+        facts.append("Chưa gợi ý nhạc lần nào.")
+    return facts
+
+
 def _context_message(snap: MemorySnapshot) -> str | None:
-    lines = []
+    if snap.total == 0:
+        return None
+    lines = _facts(snap)
     if snap.summary.strip():
         lines.append(f"Tóm tắt: {snap.summary.strip()}")
     profile = _music_profile(snap)
     if profile:
         lines.append(f"Nhạc đã gợi ý: {profile}")
-    if not lines:
-        return None
     return "\n".join([CONTEXT_HEADER, *lines])
 
 
