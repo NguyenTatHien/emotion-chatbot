@@ -13,6 +13,7 @@ from app.session import store
 _ENV_KEYS = [
     "MODEL_MODE",
     "MOCK_LATENCY_MS",
+    "FUSION_ALPHA",
     "HISTORY_TURNS",
     "SAFETY_HOTLINE_TEXT",
     "CORS_ORIGINS",

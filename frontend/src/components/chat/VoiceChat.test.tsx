@@ -53,6 +53,7 @@ function voiceResponse(over: Partial<ChatResponse> = {}): ChatResponse {
       latency_ms: 5,
       warnings: [],
       music_decision: "chip",
+      fusion_applied: false,
     },
     ...over,
   }

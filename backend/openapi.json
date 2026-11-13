@@ -347,6 +347,31 @@
               }
             ],
             "title": "Arousal"
+          },
+          "label_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Text"
+          },
+          "probs_text": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probs Text"
           }
         },
         "type": "object",
@@ -479,6 +504,11 @@
             ],
             "title": "Music Decision",
             "default": "no_tag"
+          },
+          "fusion_applied": {
+            "type": "boolean",
+            "title": "Fusion Applied",
+            "default": false
           }
         },
         "type": "object",

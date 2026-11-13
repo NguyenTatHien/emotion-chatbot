@@ -24,6 +24,7 @@ const response: ChatResponse = {
     latency_ms: 1,
     warnings: [],
     music_decision: "chip",
+    fusion_applied: false,
   },
 }
 
