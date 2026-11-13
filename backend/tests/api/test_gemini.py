@@ -87,8 +87,26 @@ def test_gemini_system_prompt_has_music_tag_and_context_rules():
     from app import gemini
 
     assert "[NHAC:CO]" in gemini.SYSTEM_PROMPT and "[NHAC:KHONG]" in gemini.SYSTEM_PROMPT
-    assert "[BỐI CẢNH CUỘC TRÒ CHUYỆN]" in gemini.SYSTEM_PROMPT
     assert "Dòng đầu tiên" in gemini.SYSTEM_PROMPT
+    # Không nhắc nhãn bối cảnh trong prompt (mô hình sẽ chép lại nhãn).
+    assert "BỐI CẢNH" not in gemini.SYSTEM_PROMPT and "BỐI CẢNH" not in gemini.CONTEXT_NOTE
+
+
+def test_gemini_context_note_only_with_context_pair():
+    from app import gemini
+
+    def system_of(history):
+        payload = gemini.build_payload("x", {"label": "Other"}, None, history, None)
+        return payload["systemInstruction"]["parts"][0]["text"]
+
+    plain = [{"role": "user", "content": "chào"}, {"role": "assistant", "content": "chào bạn"}]
+    pair = [
+        {"role": "user", "content": "[BỐI CẢNH CUỘC TRÒ CHUYỆN — tóm tắt]\nTóm tắt: ..."},
+        {"role": "assistant", "content": "Mình nhớ rồi."},
+    ]
+    assert gemini.CONTEXT_NOTE not in system_of([])
+    assert gemini.CONTEXT_NOTE not in system_of(plain)
+    assert gemini.CONTEXT_NOTE in system_of(pair + plain)
 
 
 def test_gemini_error_falls_back_to_canned_without_leaking_key(client, remote_llm, net, caplog):

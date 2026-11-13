@@ -50,3 +50,33 @@ def test_bare_form_only_on_own_line():
 def test_preserves_paragraphs_when_no_tag():
     text = "Dòng một.\n\nDòng hai."
     assert split_music_tag(text) == (text, None)
+
+
+@pytest.mark.parametrize(
+    ("raw", "reply", "flag"),
+    [
+        # Đúng lỗi thấy trên web: Qwen chép nhãn bối cảnh rồi tự viết "tóm tắt".
+        (
+            "[NHAC:KHONG]\n[BỐI CẢNH CUỘC TRÒ CHUYỆN] Người dùng chào hỏi.\n"
+            "Chào bạn nhé, bạn có gì muốn nói không?",
+            "Chào bạn nhé, bạn có gì muốn nói không?",
+            False,
+        ),
+        (
+            "[BỐI CẢNH CUỘC TRÒ CHUYỆN] Người dùng đang phân vân về đề án.\n\n"
+            "[NHAC:CO]\nĐừng lo, bạn chia sẻ thêm nhé.",
+            "Đừng lo, bạn chia sẻ thêm nhé.",
+            True,
+        ),
+        ("[boi canh cuoc tro chuyen — tóm tắt]\nOk nha", "Ok nha", None),
+        ("  Bối cảnh cuộc trò chuyện: bạn mệt.\nNghỉ chút nhé.", "Nghỉ chút nhé.", None),
+        ("[NHAC:KHONG]\n[BỐI CẢNH CUỘC TRÒ CHUYỆN] chỉ có ghi chú", "", False),
+    ],
+)
+def test_context_label_lines_are_removed(raw, reply, flag):
+    assert split_music_tag(raw) == (reply, flag)
+
+
+def test_context_words_mid_sentence_are_kept():
+    text = "Mình hiểu bối cảnh cuộc trò chuyện này khó với bạn."
+    assert split_music_tag(text) == (text, None)

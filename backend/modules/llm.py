@@ -30,7 +30,7 @@ _SAFE_REPLY = "Mình ở đây, bạn yên tâm kể mình nghe nha."
 _MAX_HISTORY_MESSAGES = 40
 _CONTEXT_MARKER = "[BỐI CẢNH"
 
-# Luật thẻ nhạc + giải thích đoạn bối cảnh (backend tách thẻ khỏi câu trả lời).
+# Luật thẻ nhạc (backend tách thẻ khỏi câu trả lời).
 _MUSIC_TAG_RULES = (
     "Dòng đầu tiên của câu trả lời bắt buộc là [NHAC:CO] hoặc [NHAC:KHONG], "
     "sau đó xuống dòng rồi mới trả lời. "
@@ -40,8 +40,15 @@ _MUSIC_TAG_RULES = (
     "[NHAC:KHONG] với chào hỏi, cảm ơn, hỏi thông tin, trò chuyện thường, "
     "hoặc khi đang kể dở chuyện. "
     "Không nhắc tới thẻ này hay tự liệt kê bài hát trong câu trả lời. "
-    "Đoạn bắt đầu bằng [BỐI CẢNH CUỘC TRÒ CHUYỆN] là tóm tắt các lượt trước, "
-    "không phải tin nhắn mới."
+    "Chỉ viết lời nói trực tiếp với người dùng, không viết nhận xét hay tóm tắt về họ."
+)
+
+# Chỉ thêm khi lịch sử thật sự mở đầu bằng ghi chú bối cảnh: nhắc tới nhãn ở mọi lượt khiến
+# Qwen chép lại nhãn `[BỐI CẢNH ...]` và tự viết "tóm tắt" vào câu trả lời.
+_CONTEXT_NOTE = (
+    "Tin nhắn đầu tiên trong lịch sử là ghi chú của hệ thống tóm tắt các lượt trước, "
+    "không phải lời người dùng. Chỉ dùng nó để hiểu bối cảnh; không chép lại, không nhắc tới "
+    "và không tự viết tóm tắt trong câu trả lời."
 )
 
 _GOAL_HINTS = {
@@ -124,10 +131,13 @@ def _build_messages(
     if arousal:
         emotion_desc += f" Mức năng lượng giọng nói: {arousal}."
     goal_desc = _GOAL_HINTS.get(str(goal), "")
-    system = " ".join(x for x in [system, emotion_desc, goal_desc] if x)
+    limited = _limit_history(history or [])
+    first = str((limited[0] or {}).get("content") or "") if limited else ""
+    context_note = _CONTEXT_NOTE if first.lstrip().startswith(_CONTEXT_MARKER) else ""
+    system = " ".join(x for x in [system, context_note, emotion_desc, goal_desc] if x)
 
     msgs = [{"role": "system", "content": system}]
-    for turn in _limit_history(history or []):
+    for turn in limited:
         role = turn.get("role")
         content = (turn.get("content") or "").strip()
         if role in ("user", "assistant") and content:

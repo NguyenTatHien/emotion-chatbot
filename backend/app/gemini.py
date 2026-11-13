@@ -28,9 +28,24 @@ SYSTEM_PROMPT = (
     "- [NHAC:KHONG] với chào hỏi, cảm ơn, hỏi thông tin, trò chuyện thường, "
     "hoặc khi đang kể dở chuyện.\n"
     "Không nhắc tới thẻ này hay tự liệt kê bài hát trong câu trả lời.\n"
-    "Đoạn bắt đầu bằng [BỐI CẢNH CUỘC TRÒ CHUYỆN] là tóm tắt các lượt trước, "
-    "không phải tin nhắn mới."
+    "Chỉ viết lời nói trực tiếp với người dùng, không viết nhận xét hay tóm tắt về họ."
 )
+
+# Chỉ thêm khi lịch sử thật sự mở đầu bằng ghi chú bối cảnh: nhắc tới nhãn ở mọi lượt khiến
+# mô hình nhỏ chép lại nhãn và tự viết "tóm tắt" vào câu trả lời.
+CONTEXT_NOTE = (
+    "Tin nhắn đầu tiên trong lịch sử là ghi chú của hệ thống tóm tắt các lượt trước, "
+    "không phải lời người dùng. Chỉ dùng nó để hiểu bối cảnh; không chép lại, không nhắc tới "
+    "và không tự viết tóm tắt trong câu trả lời."
+)
+_CONTEXT_PREFIX = "[BỐI CẢNH"
+
+
+def has_context_pair(history: list[dict]) -> bool:
+    """Lịch sử có mở đầu bằng cặp tin bối cảnh do `app/memory.py` dựng không."""
+    if not history:
+        return False
+    return str(history[0].get("content", "")).lstrip().startswith(_CONTEXT_PREFIX)
 
 SUMMARY_SYSTEM_PROMPT = (
     "Bạn tóm tắt cuộc trò chuyện giữa một người dùng và một chatbot đồng hành bằng tiếng Việt. "
@@ -76,8 +91,9 @@ def build_payload(
         notes.append(f"người dùng {_GOAL_VI[goal]} bằng âm nhạc")
     user_part = f"[{'; '.join(notes)}]\n{text}"
     contents.append({"role": "user", "parts": [{"text": user_part}]})
+    system = f"{SYSTEM_PROMPT}\n{CONTEXT_NOTE}" if has_context_pair(history) else SYSTEM_PROMPT
     return {
-        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "systemInstruction": {"parts": [{"text": system}]},
         "contents": contents,
         "generationConfig": {"temperature": 0.8, "maxOutputTokens": 1024},
     }
