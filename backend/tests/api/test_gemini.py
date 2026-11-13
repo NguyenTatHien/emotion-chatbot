@@ -54,7 +54,9 @@ def test_gemini_used_when_qwen_fails(client, remote_llm, net):
     payload = json.loads(req.read())
     assert "đồng cảm" in payload["systemInstruction"]["parts"][0]["text"]
     contents = payload["contents"]
-    assert [c["role"] for c in contents] == ["user", "model", "user"]
+    # cặp ghi chú bối cảnh + 1 lượt trước + tin hiện tại
+    assert [c["role"] for c in contents] == ["user", "model", "user", "model", "user"]
+    assert contents[0]["parts"][0]["text"].startswith("[BỐI CẢNH CUỘC TRÒ CHUYỆN")
     last = contents[-1]["parts"][0]["text"]
     assert "mình buồn quá" in last and "Cảm xúc" in last
 
@@ -68,7 +70,8 @@ def test_gemini_receives_full_backend_history(client, remote_llm, net):
     chat_payloads = [
         p for p in payloads if "đồng cảm" in p["systemInstruction"]["parts"][0]["text"]
     ]
-    assert len(chat_payloads[-1]["contents"]) == 18 + 1  # Gemini không tự cắt thêm lịch sử
+    # cặp bối cảnh + 9 lượt trước + tin hiện tại: Gemini không tự cắt thêm lịch sử
+    assert len(chat_payloads[-1]["contents"]) == 2 + 18 + 1
 
 
 def test_build_payload_keeps_all_18_history_messages():
@@ -87,8 +90,26 @@ def test_gemini_system_prompt_has_music_tag_and_context_rules():
     from app import gemini
 
     assert "[NHAC:CO]" in gemini.SYSTEM_PROMPT and "[NHAC:KHONG]" in gemini.SYSTEM_PROMPT
-    assert "[BỐI CẢNH CUỘC TRÒ CHUYỆN]" in gemini.SYSTEM_PROMPT
     assert "Dòng đầu tiên" in gemini.SYSTEM_PROMPT
+    # Không nhắc nhãn bối cảnh trong prompt (mô hình sẽ chép lại nhãn).
+    assert "BỐI CẢNH" not in gemini.SYSTEM_PROMPT and "BỐI CẢNH" not in gemini.CONTEXT_NOTE
+
+
+def test_gemini_context_note_only_with_context_pair():
+    from app import gemini
+
+    def system_of(history):
+        payload = gemini.build_payload("x", {"label": "Other"}, None, history, None)
+        return payload["systemInstruction"]["parts"][0]["text"]
+
+    plain = [{"role": "user", "content": "chào"}, {"role": "assistant", "content": "chào bạn"}]
+    pair = [
+        {"role": "user", "content": "[BỐI CẢNH CUỘC TRÒ CHUYỆN — tóm tắt]\nTóm tắt: ..."},
+        {"role": "assistant", "content": "Mình nhớ rồi."},
+    ]
+    assert gemini.CONTEXT_NOTE not in system_of([])
+    assert gemini.CONTEXT_NOTE not in system_of(plain)
+    assert gemini.CONTEXT_NOTE in system_of(pair + plain)
 
 
 def test_gemini_error_falls_back_to_canned_without_leaking_key(client, remote_llm, net, caplog):
@@ -180,3 +201,20 @@ def test_gemini_only_valid_for_llm(set_env, field):
 
     with pytest.raises(ValidationError, match="không hợp lệ"):
         set_env(**{field: "gemini"})
+
+
+def test_gemini_note_shows_vietnamese_emotion_with_probability():
+    from app import gemini
+
+    emotion = {"label": "Other", "probs": {"Other": 0.73, "Sadness": 0.1}}
+    payload = gemini.build_payload("mình phân vân quá", emotion, None, [], None)
+    assert "Cảm xúc lượt hiện tại: Bình thường (73%)" in payload["contents"][-1]["parts"][0]["text"]
+
+
+def test_gemini_prompt_has_listen_first_rules_and_examples():
+    from app import gemini
+
+    prompt = gemini.SYSTEM_PROMPT
+    assert "lần đầu kể một chuyện" in prompt and "Bình thường hoặc Vui vẻ" in prompt
+    assert '"mình đang phân vân về đề án tốt nghiệp" → [NHAC:KHONG]' in prompt
+    assert '"có bài nào nghe cho vui không" → [NHAC:CO]' in prompt

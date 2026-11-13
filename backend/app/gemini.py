@@ -8,6 +8,7 @@ import logging
 import httpx
 
 from app.config import get_settings
+from app.constants import LABELS_VI
 from app.schemas import SessionTurn
 
 logger = logging.getLogger("emotion_chatbot.gemini")
@@ -22,15 +23,53 @@ SYSTEM_PROMPT = (
     "Không nói rằng bạn là con người.\n"
     "Dòng đầu tiên của câu trả lời bắt buộc là [NHAC:CO] hoặc [NHAC:KHONG], "
     "sau đó xuống dòng rồi mới trả lời.\n"
-    "- [NHAC:CO] khi người dùng muốn nghe nhạc / hỏi bài hát, hoặc đang buồn, lo âu, "
-    "căng thẳng kéo dài và nghe nhạc có thể giúp họ dịu lại; không chọn CO nếu vừa gợi ý "
-    "nhạc ở lượt ngay trước hoặc người dùng đã nói không muốn nghe nhạc.\n"
-    "- [NHAC:KHONG] với chào hỏi, cảm ơn, hỏi thông tin, trò chuyện thường, "
-    "hoặc khi đang kể dở chuyện.\n"
+    "Chọn [NHAC:CO] chỉ khi:\n"
+    "(1) người dùng xin nghe nhạc, hỏi bài hát hoặc nhờ gợi ý bài; hoặc\n"
+    "(2) người dùng đã buồn, lo sợ hoặc tức giận rõ rệt ở ít nhất 2 lượt gần đây "
+    "(tính cả lượt hiện tại) và lượt ngay trước chưa được gợi ý nhạc.\n"
+    "Mọi trường hợp khác chọn [NHAC:KHONG], nhất là: lượt đầu tiên; lần đầu kể một chuyện "
+    "(hãy lắng nghe trước); cảm xúc Bình thường hoặc Vui vẻ; chào hỏi, cảm ơn, hỏi thông tin; "
+    "người dùng đã nói không muốn nghe nhạc.\n"
+    "Nếu đầu lịch sử không có ghi chú của hệ thống thì đây là lượt đầu tiên.\n"
+    "Ví dụ:\n"
+    '"chào bạn" → [NHAC:KHONG]\n'
+    '"mình đang phân vân về đề án tốt nghiệp" → [NHAC:KHONG]\n'
+    '"có bài nào nghe cho vui không" → [NHAC:CO]\n'
+    'lượt thứ 3, hai lượt trước đều buồn: "mình sợ rớt môn lắm, chán ghê" → [NHAC:CO]\n'
     "Không nhắc tới thẻ này hay tự liệt kê bài hát trong câu trả lời.\n"
-    "Đoạn bắt đầu bằng [BỐI CẢNH CUỘC TRÒ CHUYỆN] là tóm tắt các lượt trước, "
-    "không phải tin nhắn mới."
+    "Chỉ viết lời nói trực tiếp với người dùng, không viết nhận xét hay tóm tắt về họ."
 )
+
+# Chỉ thêm khi lịch sử thật sự mở đầu bằng ghi chú bối cảnh: nhắc tới nhãn ở mọi lượt khiến
+# mô hình nhỏ chép lại nhãn và tự viết "tóm tắt" vào câu trả lời.
+CONTEXT_NOTE = (
+    "Tin nhắn đầu tiên trong lịch sử là ghi chú của hệ thống (lượt thứ mấy, cảm xúc các lượt "
+    "gần đây, lần gợi ý nhạc gần nhất, tóm tắt), không phải lời người dùng. Dùng nó để chọn thẻ "
+    "nhạc và hiểu bối cảnh; không chép lại, không nhắc tới và không tự viết tóm tắt trong câu "
+    "trả lời."
+)
+_CONTEXT_PREFIX = "[BỐI CẢNH"
+
+
+def has_context_pair(history: list[dict]) -> bool:
+    """Lịch sử có mở đầu bằng cặp tin bối cảnh do `app/memory.py` dựng không."""
+    if not history:
+        return False
+    return str(history[0].get("content", "")).lstrip().startswith(_CONTEXT_PREFIX)
+
+
+def emotion_note(emotion: object) -> str:
+    """'Bình thường (73%)': tên tiếng Việt của nhãn kèm xác suất của nhãn đó (nếu có)."""
+    if not isinstance(emotion, dict):
+        return LABELS_VI.get(str(emotion or "Other"), str(emotion or "Other"))
+    label = str(emotion.get("label", "Other"))
+    name = LABELS_VI.get(label, label)
+    prob = (emotion.get("probs") or {}).get(label)
+    try:
+        return f"{name} ({float(prob):.0%})" if prob is not None else name
+    except (TypeError, ValueError):
+        return name
+
 
 SUMMARY_SYSTEM_PROMPT = (
     "Bạn tóm tắt cuộc trò chuyện giữa một người dùng và một chatbot đồng hành bằng tiếng Việt. "
@@ -69,15 +108,16 @@ def build_payload(
         }
         for m in history
     ]
-    notes = [f"Cảm xúc nhận diện được: {(emotion or {}).get('label', 'Other')}"]
+    notes = [f"Cảm xúc lượt hiện tại: {emotion_note(emotion)}"]
     if arousal in _AROUSAL_VI:
         notes.append(f"mức kích động trong giọng nói: {_AROUSAL_VI[arousal]}")
     if goal in _GOAL_VI:
         notes.append(f"người dùng {_GOAL_VI[goal]} bằng âm nhạc")
     user_part = f"[{'; '.join(notes)}]\n{text}"
     contents.append({"role": "user", "parts": [{"text": user_part}]})
+    system = f"{SYSTEM_PROMPT}\n{CONTEXT_NOTE}" if has_context_pair(history) else SYSTEM_PROMPT
     return {
-        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "systemInstruction": {"parts": [{"text": system}]},
         "contents": contents,
         "generationConfig": {"temperature": 0.8, "maxOutputTokens": 1024},
     }

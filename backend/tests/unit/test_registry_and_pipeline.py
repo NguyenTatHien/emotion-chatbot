@@ -85,14 +85,14 @@ async def test_history_is_capped_by_backend(set_env):
     registry.override("llm", spy)
     for i in range(8):
         await handle_chat("s1", message=f"lượt {i}")
-    assert len(seen["history"]) == 14  # lượt thứ 8 thấy đủ 7 lượt trước, chưa chạm trần
+    assert len(seen["history"]) == 2 + 14  # cặp bối cảnh + đủ 7 lượt trước, chưa chạm trần
     for i in range(8, 20):
         await handle_chat("s1", message=f"lượt {i}")
     history = seen["history"]
-    assert len(history) == 2 * (6 + 2 * 4)
-    assert history[0] == {"role": "user", "content": "lượt 5"}
+    assert len(history) == 2 + 2 * (6 + 2 * 4)
+    assert history[2] == {"role": "user", "content": "lượt 5"}
     assert history[-2]["content"] == "lượt 18"
-    assert [m["role"] for m in history[:2]] == ["user", "assistant"]
+    assert [m["role"] for m in history[:4]] == ["user", "assistant"] * 2
 
 
 async def test_history_turns_setting(set_env):
@@ -106,7 +106,7 @@ async def test_history_turns_setting(set_env):
     registry.override("llm", spy)
     for i in range(8):
         await handle_chat("s1", message=f"lượt {i}")
-    assert seen["n"] == 2 * (2 + 2 * 1)
+    assert seen["n"] == 2 + 2 * (2 + 2 * 1)
 
 
 async def test_llm_and_music_run_in_parallel():

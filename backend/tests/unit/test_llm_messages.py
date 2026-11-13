@@ -32,11 +32,22 @@ def test_old_six_message_cut_is_gone():
     assert len(msgs(history)) == 1 + 12 + 1
 
 
-def test_system_prompt_has_music_tag_and_context_rules():
+def test_system_prompt_has_music_tag_rules():
     system = msgs([])[0]["content"]
     assert "[NHAC:CO]" in system and "[NHAC:KHONG]" in system
-    assert "[BỐI CẢNH CUỘC TRÒ CHUYỆN]" in system
     assert "dòng đầu tiên" in system.lower()
+
+
+def test_system_prompt_never_shows_context_label():
+    """Nhắc tới nhãn `[BỐI CẢNH ...]` trong prompt khiến Qwen chép nhãn vào câu trả lời."""
+    for history in ([], pair_and_turns(2)[2:], pair_and_turns(2)):
+        assert "BỐI CẢNH" not in msgs(history)[0]["content"]
+
+
+def test_context_note_only_when_history_starts_with_context_pair():
+    assert llm._CONTEXT_NOTE not in msgs([])[0]["content"]
+    assert llm._CONTEXT_NOTE not in msgs(pair_and_turns(2)[2:])[0]["content"]
+    assert llm._CONTEXT_NOTE in msgs(pair_and_turns(2))[0]["content"]
 
 
 def test_safety_cap_keeps_leading_context_pair():
@@ -57,3 +68,18 @@ def test_safe_reply_has_no_tag():
     from app.music_tag import split_music_tag
 
     assert split_music_tag(llm._SAFE_REPLY) == (llm._SAFE_REPLY, None)
+
+
+def test_emotion_note_in_vietnamese_with_probability():
+    built = llm._build_messages(
+        "mình phân vân quá", {"label": "Other", "probs": {"Other": 0.73}}, "", [], None
+    )
+    assert "Bình thường (73%)" in built[0]["content"]
+    assert "Vui vẻ" in llm._emotion_note("Enjoyment")
+
+
+def test_rules_have_listen_first_and_examples():
+    system = msgs([])[0]["content"]
+    assert "lần đầu kể một chuyện" in system
+    assert '"mình đang phân vân về đề án tốt nghiệp" → [NHAC:KHONG]' in system
+    assert "lượt thứ 3, hai lượt trước đều buồn" in system

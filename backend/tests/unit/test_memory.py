@@ -8,8 +8,9 @@ import pytest
 import respx
 
 from app import gemini, memory, registry
+from app.constants import LABELS
 from app.pipeline import handle_chat
-from app.schemas import SessionTurn, Song
+from app.schemas import Emotion, SessionTurn, Song
 from app.session import SessionStore, store
 
 KEY = "AIza-SECRET-KEY-9876"
@@ -65,13 +66,42 @@ async def test_sessions_are_isolated():
     assert await memory.build_history("b") == []
 
 
-async def test_short_session_has_no_context_pair():
+async def test_first_turn_has_no_context_pair():
+    assert await memory.build_history("s") == []
+
+
+async def test_short_session_starts_with_facts_pair():
     await fill("s", 3)
     history = await memory.build_history("s")
-    assert len(history) == 6
-    assert [m["role"] for m in history] == ["user", "assistant"] * 3
-    assert history[0] == {"role": "user", "content": "hỏi 1"}
-    assert not any(m["content"].startswith(memory.CONTEXT_MARKER) for m in history)
+    assert len(history) == 2 + 6
+    assert [m["role"] for m in history] == ["user", "assistant"] * 4
+    assert history[0]["content"].startswith(memory.CONTEXT_MARKER)
+    assert history[1] == {"role": "assistant", "content": memory.CONTEXT_ACK}
+    assert history[2] == {"role": "user", "content": "hỏi 1"}
+    context = history[0]["content"]
+    assert "lượt thứ 4" in context
+    assert "Chưa gợi ý nhạc lần nào." in context
+    assert "Tóm tắt" not in context and "Nhạc đã gợi ý" not in context
+
+
+def emo(label, p=0.8):
+    probs = dict.fromkeys(LABELS, 0.0)
+    probs[label] = p
+    return Emotion(label=label, probs=probs)
+
+
+async def test_facts_list_recent_emotions_and_last_music_turn():
+    await store.append_turn("s", turn(1, emotion=emo("Other")))
+    await store.append_turn("s", turn(2, [song()], emotion=emo("Sadness")))
+    await store.append_turn("s", turn(3, emotion=emo("Fear")))
+    await store.append_turn("s", turn(4, safety=True))
+    context = (await memory.build_history("s"))[0]["content"]
+    assert "lượt thứ 5" in context
+    # chỉ 3 lượt gần nhất, tên tiếng Việt, lượt safety không lộ nhãn
+    expected = "Cảm xúc các lượt gần đây: lượt 2 Buồn; lượt 3 Lo sợ; lượt 4 nội dung nhạy cảm."
+    assert expected in context
+    assert "lượt 1 Bình thường" not in context
+    assert "Lượt gần nhất có gợi ý nhạc: lượt 2 (cách đây 3 lượt)." in context
 
 
 async def test_songs_without_summary_give_context_pair():
@@ -106,9 +136,9 @@ async def test_verbatim_turns_capped_when_summary_is_late(set_env):
     set_env(HISTORY_TURNS=6, SUMMARY_BATCH_TURNS=4)
     await fill("s", 30)
     history = await memory.build_history("s")
-    assert len(history) == 2 * (6 + 2 * 4)
+    assert len(history) == 2 + 2 * (6 + 2 * 4)
     assert history[-1]["content"] == "đáp 30"
-    assert history[0]["content"] == "hỏi 17"
+    assert history[2]["content"] == "hỏi 17"
 
 
 async def test_music_profile_has_rating_and_limit_of_five_turns():
@@ -162,7 +192,7 @@ async def test_history_uses_stripped_reply():
 async def test_history_turns_setting_changes_cap(set_env):
     set_env(HISTORY_TURNS=2, SUMMARY_BATCH_TURNS=1)
     await fill("s", 10)
-    assert len(await memory.build_history("s")) == 2 * (2 + 2)
+    assert len(await memory.build_history("s")) == 2 + 2 * (2 + 2)
 
 
 async def test_evicted_session_loses_memory():
@@ -271,8 +301,8 @@ async def test_no_gemini_key_means_no_summary(set_env, monkeypatch):
     await memory.drain()
     assert called == []
     history = await memory.build_history("s")
-    assert len(history) == 24  # chưa tóm tắt: 12 lượt nằm trong trần 14
-    assert not history[0]["content"].startswith(memory.CONTEXT_MARKER)
+    assert len(history) == 2 + 24  # cặp bối cảnh + 12 lượt (chưa tóm tắt, nằm trong trần 14)
+    assert "Tóm tắt" not in history[0]["content"]  # chỉ có dữ kiện, không có bản tóm tắt
 
 
 async def test_summary_failure_keeps_old_summary_and_retries(gemini_key, monkeypatch):
