@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     REMOTE_TIMEOUT_GENERATE: float = 30.0
     REMOTE_TIMEOUT_HEALTH: float = 3.0
 
+    # Hệ số late fusion (giọng điều chỉnh xác suất cảm xúc); 0 = tắt, tối đa 0.5.
+    FUSION_ALPHA: float = 0.2
+
     SAFETY_HOTLINE_TEXT: str = ""
     MOCK_LATENCY_MS: int = 0
 
@@ -80,6 +83,13 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"{info.field_name}='{value}' không hợp lệ; chỉ chấp nhận: {', '.join(allowed)}"
             )
+        return value
+
+    @field_validator("FUSION_ALPHA")
+    @classmethod
+    def _check_fusion_alpha(cls, value: float) -> float:
+        if not 0.0 <= value <= 0.5:
+            raise ValueError(f"FUSION_ALPHA={value:g} không hợp lệ; chỉ chấp nhận trong [0, 0.5]")
         return value
 
     def module_mode(self, name: str) -> str:

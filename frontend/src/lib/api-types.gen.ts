@@ -151,6 +151,12 @@ export interface components {
             };
             /** Arousal */
             arousal?: ("low" | "medium" | "high") | null;
+            /** Label Text */
+            label_text?: string | null;
+            /** Probs Text */
+            probs_text?: {
+                [key: string]: number;
+            } | null;
         };
         /** FeedbackRequest */
         FeedbackRequest: {
@@ -215,6 +221,11 @@ export interface components {
              * @enum {string}
              */
             music_decision: "chip" | "llm" | "llm_no" | "no_tag" | "safety";
+            /**
+             * Fusion Applied
+             * @default false
+             */
+            fusion_applied: boolean;
         };
         /** MetaResponse */
         MetaResponse: {

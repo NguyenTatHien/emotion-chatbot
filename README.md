@@ -21,6 +21,8 @@ Người dùng ──▶ Frontend (React) ──POST /api/chat──▶ Backend 
                                                        │ không
                                               predict_emotion()  (CafeBERT, 7 nhãn)
                                                        │
+                              late fusion: arousal của giọng điều chỉnh xác suất
+                                                       │
                     generate_reply()  (câu trả lời mở đầu bằng thẻ [NHAC:CO|KHONG])
                                                        │
                        có chip mục tiêu hoặc thẻ CO? ──▶ recommend()
@@ -167,6 +169,7 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 | `SUMMARY_BATCH_TURNS` | `4` | Số lượt cũ nhất gộp vào bản tóm tắt mỗi lần (tóm tắt khi chưa tóm tắt ≥ `HISTORY_TURNS + SUMMARY_BATCH_TURNS`) |
 | `SUMMARY_MAX_WORDS` | `120` | Độ dài tối đa của bản tóm tắt (từ) |
 | `SUMMARY_TIMEOUT` | `20` | Timeout lần tóm tắt nền bằng Gemini (giây) |
+| `FUSION_ALPHA` | `0.2` | Hệ số late fusion giọng–chữ, trong [0, 0.5]; `0` = tắt (xem mục Late fusion) |
 | `MOCK_LATENCY_MS` | `0` | Giả độ trễ cho mock |
 | `SAFETY_HOTLINE_TEXT` | trống | Dòng hỗ trợ thêm vào thông điệp an toàn |
 | `MODEL_SERVER_URL`, `MODEL_SERVER_TOKEN` | trống | URL và bí mật dùng chung của model server (bắt buộc URL khi có module remote) |
@@ -182,6 +185,14 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 - **Cần ffmpeg** khi chạy backend không dùng Docker: backend chuẩn hoá mọi định dạng trình duyệt gửi (webm/opus, ogg, mp4/aac, wav) sang WAV 16 kHz mono trước khi gọi `speech.py`. Cài ffmpeg (`winget install ffmpeg`, `brew install ffmpeg` hoặc `apt install ffmpeg`) rồi đảm bảo có trên `PATH`, hoặc đặt `FFMPEG_BINARY`. Nếu không thấy, backend thử gói `imageio-ffmpeg` (chỉ có trong `requirements-dev.txt`, dùng cho test/dev); vẫn không có thì bước speech được coi là lỗi và hệ thống dùng chữ nhận dạng sẵn từ trình duyệt (`transcript_hint`), không trả 500. Image Docker đã cài ffmpeg bằng apt.
 - Mã lỗi: `413` khi file quá `MAX_AUDIO_MB` hoặc dài hơn `MAX_AUDIO_SECONDS` + 1 giây, `415` khi ffmpeg không giải mã được, `400` khi không nhận dạng được chữ nào và không có `message`/`transcript_hint`.
 - Test tự sinh audio mẫu bằng ffmpeg, không commit file nhị phân.
+
+### Late fusion (giọng điều chỉnh cảm xúc)
+
+- Theo mô hình valence–arousal của Russell: chữ quyết định valence, giọng (`arousal` = `low`/`high`) điều chỉnh xác suất. Nhóm năng lượng cao: Anger, Fear, Surprise, Enjoyment; nhóm thấp: Sadness, Other; Disgust giữ nguyên.
+- Công thức: giọng `high` nhân nhóm cao với `1 + α`, nhóm thấp với `1 − α` (giọng `low` thì ngược lại), rồi chuẩn hoá để tổng bằng 1; nhãn cuối là argmax, hoà thì giữ nhãn từ chữ. `α = FUSION_ALPHA`.
+- Chỉ áp dụng khi `arousal` là `low`/`high`, cảm xúc đến từ module thật (không phải dự phòng), `FUSION_ALPHA > 0` và lượt không có rủi ro an toàn. Gõ chữ, giọng `medium` hoặc prosody lỗi thì giữ nguyên kết quả từ chữ.
+- Nhãn và xác suất sau khi kết hợp đi xuống LLM, music, session, bộ nhớ hội thoại và giao diện. Khi có fusion, `emotion.label_text` / `emotion.probs_text` giữ kết quả chỉ từ chữ và `meta.fusion_applied = true`.
+- Đây là luật theo lý thuyết valence–arousal, α đặt tay và chưa có số đo độ chính xác. Tắt bằng `FUSION_ALPHA=0` mà không cần đổi code.
 
 ### Mode remote (model server trên Colab)
 

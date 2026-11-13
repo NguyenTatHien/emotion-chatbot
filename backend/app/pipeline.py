@@ -1,5 +1,6 @@
 """Bộ điều phối một lượt chat: an toàn -> cảm xúc -> quyết định nhạc -> lưu phiên.
 
+Late fusion (app/fusion.py) chạy ngay sau cảm xúc, trước LLM và nhạc.
 Nhạc: safety -> không; có chip mục tiêu -> luôn có (llm || music song song);
 còn lại do LLM quyết bằng thẻ `[NHAC:CO]` / `[NHAC:KHONG]` (music chạy sau llm).
 """
@@ -17,6 +18,7 @@ from pydantic import ValidationError
 from app import fallbacks, gemini, memory, registry
 from app.config import get_settings
 from app.constants import AROUSAL_LEVELS, LABELS, MODULE_NAMES
+from app.fusion import apply_fusion
 from app.music_tag import split_music_tag
 from app.schemas import ChatResponse, Emotion, Meta, MusicDecision, SessionTurn, Song
 from app.session import store
@@ -202,6 +204,7 @@ async def handle_chat(
 
     history = await memory.build_history(session_id)
     emotion_dict: dict | None = None
+    fusion_applied = False
     songs: list[Song] = []
     music_decision: MusicDecision = "safety" if risk else "no_tag"
 
@@ -214,13 +217,21 @@ async def handle_chat(
             "emotion", registry.get("emotion"), text, timeout=settings.module_timeout("emotion")
         )
         emotion_dict = _valid_emotion(result) if warn is None else None
+        from_module = emotion_dict is not None
         if emotion_dict is None:
             warnings.append(warn or "emotion: kết quả không hợp lệ, dùng dự phòng")
             emotion_dict = fallbacks.fallback_emotion()
 
+        # Late fusion: giọng (arousal) điều chỉnh cảm xúc từ chữ trước khi dùng cho các bước sau.
+        emotion_dict, fusion_applied = apply_fusion(
+            emotion_dict, arousal, settings.FUSION_ALPHA, from_module
+        )
+
         # Bước 4: quyết định nhạc. Có chip -> llm || music đồng thời; không chip -> llm trước,
         # chỉ gọi music khi LLM gắn thẻ CO.
         label = emotion_dict["label"]
+        # LLM chỉ nhận contract {label, probs} (đã kết hợp nếu có fusion).
+        llm_emotion = {"label": label, "probs": emotion_dict["probs"]}
 
         async def run_music() -> tuple[object | None, str | None]:
             return await try_call(
@@ -237,12 +248,12 @@ async def handle_chat(
         if goal:
             music_decision = "chip"
             reply_info, music_result = await asyncio.gather(
-                generate_with_fallback(text, emotion_dict, arousal, history, goal), run_music()
+                generate_with_fallback(text, llm_emotion, arousal, history, goal), run_music()
             )
             reply, llm_backend, llm_warnings, _ = reply_info
         else:
             reply, llm_backend, llm_warnings, music_flag = await generate_with_fallback(
-                text, emotion_dict, arousal, history, goal
+                text, llm_emotion, arousal, history, goal
             )
             if music_flag is True:
                 music_decision = "llm"
@@ -263,6 +274,7 @@ async def handle_chat(
     # Lượt an toàn không trả cảm xúc/nhạc.
     if risk:
         emotion, songs = None, []
+        fusion_applied = False
 
     turn_id = str(uuid.uuid4())
     await store.append_turn(
@@ -292,6 +304,7 @@ async def handle_chat(
         latency_ms=int((time.perf_counter() - started) * 1000),
         warnings=warnings,
         music_decision=music_decision,
+        fusion_applied=fusion_applied,
     )
     return ChatResponse(
         turn_id=turn_id,

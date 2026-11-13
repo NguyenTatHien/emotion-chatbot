@@ -13,6 +13,9 @@ class Emotion(BaseModel):
     label: str
     probs: dict[str, float]
     arousal: Arousal | None = None
+    # Kết quả chỉ từ chữ; chỉ có giá trị khi late fusion được áp dụng.
+    label_text: str | None = None
+    probs_text: dict[str, float] | None = None
 
 
 class Song(BaseModel):
@@ -30,6 +33,7 @@ class Meta(BaseModel):
     latency_ms: int = 0
     warnings: list[str] = Field(default_factory=list)
     music_decision: MusicDecision = "no_tag"
+    fusion_applied: bool = False
 
 
 class ChatResponse(BaseModel):

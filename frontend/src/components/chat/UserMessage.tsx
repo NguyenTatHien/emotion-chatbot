@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Message, MessageContent, MessageFooter } from "@/components/ui/message"
 import { Spinner } from "@/components/ui/spinner"
 import { ArousalChip, EmotionChip } from "@/components/emotion/EmotionChip"
+import { emotionMeta } from "@/lib/emotion-meta"
 import type { UserMessage as UserMsg } from "@/hooks/chat-state"
 import { VoiceBubble } from "./VoiceBubble"
 
@@ -75,6 +76,14 @@ export function UserMessage({ message, onRetry }: UserMessageProps) {
             <EmotionChip emotion={emotion} />
             {emotion.arousal ? <ArousalChip arousal={emotion.arousal} /> : null}
           </div>
+        ) : null}
+        {message.status === "sent" &&
+        emotion?.label_text &&
+        emotion.label_text !== emotion.label ? (
+          <p className="self-end text-xs text-muted-foreground">
+            Theo lời nói: {emotionMeta(emotion.label_text).vi} · kết hợp giọng:{" "}
+            {emotionMeta(emotion.label).vi}
+          </p>
         ) : null}
       </MessageContent>
     </Message>
