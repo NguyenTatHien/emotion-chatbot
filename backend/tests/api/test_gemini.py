@@ -216,5 +216,12 @@ def test_gemini_prompt_has_listen_first_rules_and_examples():
 
     prompt = gemini.SYSTEM_PROMPT
     assert "lần đầu kể một chuyện" in prompt and "Bình thường hoặc Vui vẻ" in prompt
-    assert '"mình đang phân vân về đề án tốt nghiệp" → [NHAC:KHONG]' in prompt
+    assert '"mình đang phân vân không biết nên chọn hướng nào" → [NHAC:KHONG]' in prompt
     assert '"có bài nào nghe cho vui không" → [NHAC:CO]' in prompt
+
+
+def test_gemini_prompt_forbids_inventing_a_persona():
+    from app import gemini
+
+    assert "không tự kể chuyện bản thân" in gemini.SYSTEM_PROMPT
+    assert "tốt nghiệp" not in gemini.SYSTEM_PROMPT
