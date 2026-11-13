@@ -16,6 +16,8 @@ Server đích không có GPU nên CafeBERT, PhoWhisper và Qwen3-4B chạy trên
 
 Người 1 và Người 3 có thể dùng các file này làm điểm xuất phát; khi đã nộp code thật vào `backend/modules/`, notebook tự dùng code đó.
 
+**Tự sửa cache mô hình hỏng**: mô hình lưu trên Drive (`HF_HOME`), nên nếu phiên Colab bị ngắt giữa lúc tải thì file trọng số có thể bị cắt cụt và lần sau báo lỗi kiểu `IndexError: pop from empty list`. Ô "Bước 1c" của notebook tự đọc thử mọi file `.safetensors`/`.bin` trong `HF_HOME/hub`, xoá thư mục mô hình có file lỗi để tải lại (in "Cache ổn" nếu không có gì hỏng). Ở bước 4, nếu một mô hình vẫn lỗi kiểu file hỏng (`IndexError`, `EOFError`, `UnpicklingError`, `OSError`, `SafetensorError`) thì notebook xoá cache của mô hình đó và thử lại một lần; lỗi khác hoặc lỗi lần hai vẫn báo ra như cũ.
+
 ## Hợp đồng HTTP
 
 | Route | Vào | Ra |
