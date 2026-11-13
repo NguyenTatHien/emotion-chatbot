@@ -81,5 +81,11 @@ def test_emotion_note_in_vietnamese_with_probability():
 def test_rules_have_listen_first_and_examples():
     system = msgs([])[0]["content"]
     assert "lần đầu kể một chuyện" in system
-    assert '"mình đang phân vân về đề án tốt nghiệp" → [NHAC:KHONG]' in system
+    assert '"mình đang phân vân không biết nên chọn hướng nào" → [NHAC:KHONG]' in system
     assert "lượt thứ 3, hai lượt trước đều buồn" in system
+
+
+def test_prompt_forbids_inventing_a_persona():
+    system = msgs([])[0]["content"]
+    assert "không tự kể chuyện bản thân" in system
+    assert "tốt nghiệp" not in system  # ví dụ mẫu cũ khiến Qwen tự nhận "đang tốt nghiệp"
