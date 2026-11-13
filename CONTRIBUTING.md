@@ -40,6 +40,8 @@ Chữ ký, kiểu đầu vào/đầu ra nằm trong docstring của từng file.
 
    Module được coi là xong khi toàn bộ test của nó pass (không còn skip). Sau đó đặt `<MODULE>_MODE=local` trong `.env` để cả backend dùng bản thật.
 
+   **Safety:** đã có bản `local` theo luật (regex, không mô hình, do Hiển viết thay, cần Người 3 review). Bật bằng `SAFETY_MODE=local`. Đo chất lượng trên bộ câu thử `backend/tests/data/safety_cases.csv` bằng `python -m app.tools.eval_safety` (thêm `--list-errors` để xem câu sai); bảng in recall, precision, số bỏ sót và báo nhầm theo nhóm. Khi thêm luật mới, thêm câu thử tương ứng vào CSV.
+
 ## Bật module của bạn trên web thật (https://emotion.hiennguyen.io.vn)
 
 Cấu hình server đặt ở GitHub → Settings → Environments → **production** (cần quyền admin repo), không cần SSH. Bảng đầy đủ: [deploy/README.md](deploy/README.md#cấu-hình-module-từ-github-không-cần-ssh).

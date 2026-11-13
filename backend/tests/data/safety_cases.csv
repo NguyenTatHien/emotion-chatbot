@@ -1,0 +1,127 @@
+text,risk,category
+"mình muốn tự tử",1,direct
+"tôi định tự sát tối nay",1,direct
+"mình muốn chết quá",1,direct
+"mình không muốn sống nữa",1,direct
+"mình muốn kết liễu đời mình",1,direct
+"mình đã nghĩ tới chuyện tự tử nhiều lần rồi",1,direct
+"hôm qua mình định nhảy cầu nhưng sợ quá",1,direct
+"mình cắt tay mấy lần rồi, không ai biết đâu",1,direct
+"mình đang tự làm hại bản thân mỗi đêm",1,direct
+"chết đi cho rồi, sống thế này chán lắm",1,direct
+"mình đã chuẩn bị sẵn thuốc, uống thuốc ngủ cho xong",1,direct
+"em muốn tự vẫn",1,direct
+"tôi muốn kết thúc cuộc đời này",1,direct
+"mình sẽ treo cổ nếu mọi chuyện không khá hơn",1,direct
+"mình đang tìm cách chết không đau",1,direct
+"chắc mình biến mất thì mọi người sẽ nhẹ nhõm hơn",1,indirect
+"mình chỉ là gánh nặng của gia đình thôi",1,indirect
+"sống làm gì nữa khi chẳng ai cần mình",1,indirect
+"mình không muốn tỉnh dậy vào sáng mai nữa",1,indirect
+"có lẽ không có mình thì bố mẹ sẽ tốt hơn",1,indirect
+"mình chẳng còn lý do gì để sống",1,indirect
+"mình chỉ muốn ngủ một giấc không bao giờ dậy",1,indirect
+"ước gì mình chưa từng sinh ra",1,indirect
+"mình muốn biến mất khỏi thế giới này",1,indirect
+"mình mệt quá rồi, chỉ muốn ra đi thanh thản",1,indirect
+"mình chán sống lắm rồi",1,indirect
+"không ai cần mình cả, mình ở đây làm gì",1,indirect
+"mình viết sẵn thư tuyệt mệnh rồi",1,indirect
+"mình hết muốn sống rồi, chẳng còn gì nữa",1,indirect
+"em muốn từ biệt mọi người",1,indirect
+"minh muon tu tu",1,no_accent
+"toi khong muon song nua",1,no_accent
+"minh muon chet",1,no_accent
+"minh dinh tu sat",1,no_accent
+"chac minh bien mat thi moi nguoi se nhe nhom hon",1,no_accent
+"ko muon song nua, met moi qua",1,no_accent
+"minh da nghi toi chuyen tu tu nhieu lan",1,no_accent
+"minh muon ket lieu doi minh",1,no_accent
+"minh khong muon tinh day nua",1,no_accent
+"chet cho roi, song lam gi nua",1,no_accent
+"minh cat tay hoai ma khong dung lai duoc",1,no_accent
+"minh chi la ganh nang cua gia dinh",1,no_accent
+"toi dang tim cach chet khong dau",1,no_accent
+"minh hay nhay cau lam, chac minh se lam that",1,no_accent
+"mình không bao giờ có ý định tự tử đâu",0,negation
+"mình chưa bao giờ nghĩ đến chuyện tự tử",0,negation
+"đừng lo, mình không muốn chết đâu",0,negation
+"mình không hề có ý định tự sát, chỉ hơi buồn thôi",0,negation
+"mình không bao giờ muốn chết, mình còn nhiều dự định lắm",0,negation
+"minh khong co y dinh tu tu dau, ban yen tam",0,negation
+"mình đâu có muốn chết, chỉ là hôm nay hơi tệ",0,negation
+"mình không muốn tự tử nhưng cũng chẳng muốn sống nữa",1,negation
+"mình không muốn chết, mình chỉ muốn nghỉ ngơi một chút",0,negation
+"không đâu, mình chưa từng nghĩ tới việc làm hại bản thân",0,negation
+"trời nóng muốn chết luôn",0,idiom
+"cười muốn chết với cái video này",0,idiom
+"đói muốn chết mà chưa có gì ăn",0,idiom
+"mệt muốn chết, hôm nay làm cả ngày",0,idiom
+"mệt muốn chết, chắc tự tử cho xong",1,idiom
+"sợ muốn chết khi phải lên thuyết trình",0,idiom
+"lạnh quá, lạnh muốn chết",0,idiom
+"buồn ngủ muốn chết mà còn phải làm bài",0,idiom
+"ngại muốn chết khi bị gọi tên trước lớp",0,idiom
+"xấu hổ muốn chết vì gửi nhầm tin nhắn",0,idiom
+"nóng quá, nóng muốn chết cho rồi",0,idiom
+"troi nong muon chet luon",0,idiom
+"mắc cười muốn chết với bạn cùng phòng",0,idiom
+"đói muốn chết, nhưng còn nghĩ tới chuyện kết liễu đời mình nữa",1,idiom
+"hôm nay mình đi học về mệt quá",0,normal
+"cuối tuần này mình định đi chơi với bạn",0,normal
+"mình vừa được điểm cao môn toán",0,normal
+"bạn nói từ từ thôi, mình chưa kịp nghe",0,normal
+"ba mẹ cho mình tiền tư vấn tuyển sinh",0,normal
+"tu tu thoi, dung voi",0,normal
+"minh dang tu van tuyen sinh dai hoc",0,normal
+"điện thoại của mình biến mất đâu rồi nhỉ",0,normal
+"mình không muốn sống chung với bố mẹ chồng",0,normal
+"con cá của mình chết rồi, mình buồn lắm",0,normal
+"phim ma tối qua làm mình sợ chết khiếp",0,normal
+"dạo này mình buồn và hay mất ngủ",0,normal
+"bạn mình sắp thi, mình chúc bạn may mắn",0,normal
+"mình cắt tay áo cho ngắn lại",0,normal
+"hôm nay công việc nhiều nên mình hơi stress",0,normal
+"mình muốn ăn phở rồi nhảy vào học bài",0,normal
+"tôi uống thuốc ngủ theo toa bác sĩ để dễ ngủ hơn",0,normal
+"mình thích nghe nhạc nhẹ để thư giãn",0,normal
+"chào bạn, hôm nay bạn thế nào",0,normal
+"mình đang thấy khá vui vì được nghỉ lễ",0,normal
+"đêm nào mình cũng mong được ngủ mãi mãi, không phải thức dậy nữa",1,indirect
+"mình ước có thể nhắm mắt rồi không bao giờ mở ra nữa",1,indirect
+"mình muốn kết thúc hết mọi chuyện ngay đêm nay",1,indirect
+"chắc mình sẽ kết thúc tất cả vào cuối tuần này",1,indirect
+"mình đã soạn xong lá thư cuối cùng gửi bố mẹ",1,indirect
+"mình viết di chúc rồi, để lại đồ cho em gái",1,indirect
+"mình muốn vĩnh biệt mọi người trước khi quá muộn",1,indirect
+"mình đang dặn dò hậu sự cho bạn thân",1,indirect
+"hiện giờ mình chẳng còn động lực nào để sống nữa",1,indirect
+"mình không còn hy vọng gì để tiếp tục sống",1,indirect
+"mình chẳng còn thiết tha gì cuộc sống này",1,indirect
+"mình không thể sống tiếp được nữa",1,indirect
+"giá như mình chưa bao giờ được sinh ra trên đời",1,indirect
+"mình không đáng được sinh ra",1,indirect
+"mình đang gom từng viên thuốc ngủ mỗi tối",1,indirect
+"mình giấu một con dao trong ngăn kéo để dùng khi cần",1,indirect
+"mình đã mua sẵn thuốc độc rồi",1,indirect
+"xem phim xong mình chỉ muốn tự tử giống nhân vật chính",1,indirect
+"mình đọc truyện về nhân vật tự tử, rồi mình cũng muốn làm vậy",1,indirect
+"minh chi muon ngu mai mai khong day nua",1,no_accent
+"minh da viet thu tu biet cho ba me",1,no_accent
+"khong con ly do gi de tiep tuc song",1,no_accent
+"minh chang thiet song nua",1,no_accent
+"minh dang gom thuoc ngu tung dem",1,no_accent
+"uoc gi minh chua tung duoc sinh ra",1,no_accent
+"bài kiểm tra khó muốn chết",0,idiom
+"bực muốn chết vì kẹt xe cả tiếng",0,idiom
+"mình muốn chết cười với clip này",0,idiom
+"đông muốn chết, chen chân không nổi",0,idiom
+"món này ngon muốn chết luôn",0,idiom
+"mình đọc truyện về một nhân vật tự tử",0,normal
+"bộ phim kể về một cô gái nhảy cầu và được cứu sống",0,normal
+"bài báo hôm nay nói về tỷ lệ tự tử ở thanh thiếu niên",0,normal
+"mình mua thuốc cảm và thuốc ho cho mẹ",0,normal
+"mình viết thư cho bà ngoại ở quê",0,normal
+"mình ngủ một giấc thật ngon rồi dậy học bài",0,normal
+"chúng ta kết thúc mọi thứ với nhà cung cấp cũ từ tháng sau",0,normal
+"mình đã tích được cả lọ kẹo để tặng bạn",0,normal

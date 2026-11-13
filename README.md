@@ -89,7 +89,7 @@ pytest tests/contract -k <tên_module>
 |---|---|---|
 | `emotion.py` | `predict_emotion(text)` | Người 1 |
 | `speech.py` | `transcribe(wav_path)`, `extract_prosody(wav_path)` | Người 3 |
-| `safety.py` | `check_safety(text)` | Người 3 |
+| `safety.py` | `check_safety(text)` — đã có bản `local` theo luật, chờ Người 3 review | Người 3 |
 | `llm.py` | `generate_reply(text, emotion, arousal, history, goal)` | Người 3 |
 | `music.py` | `recommend(label, arousal, goal, k)` | Người 5 |
 | Backend, frontend, Docker | | Hiển (Người 4) |
