@@ -1,4 +1,4 @@
-"""Mock LLM: câu đồng cảm theo nhãn, có tham chiếu lịch sử."""
+"""Mock LLM: câu đồng cảm theo nhãn, có tham chiếu lịch sử, kèm thẻ nhạc tất định."""
 
 from mocks._util import simulate_latency
 
@@ -20,6 +20,21 @@ _GOAL_HINTS = {
 }
 
 
+# Cụm từ xin nhạc: thấy một trong các cụm này thì mock gắn thẻ CO.
+_MUSIC_REQUESTS = ("nghe nhạc", "bài hát", "bài nào", "playlist", "mở nhạc")
+_MUSIC_LABELS = ("Sadness", "Fear")
+
+
+def _music_tag(text: str, label: str, history: list[dict]) -> str:
+    """Thẻ nhạc tất định (chỉ để dev/test, không phải hành vi sản phẩm)."""
+    lowered = (text or "").lower()
+    asked = any(phrase in lowered for phrase in _MUSIC_REQUESTS)
+    has_user_turn = any(m.get("role") == "user" for m in history)
+    if asked or (label in _MUSIC_LABELS and has_user_turn):
+        return "[NHAC:CO]"
+    return "[NHAC:KHONG]"
+
+
 def generate_reply(
     text: str,
     emotion: dict,
@@ -36,4 +51,4 @@ def generate_reply(
     if goal in _GOAL_HINTS:
         parts.append(_GOAL_HINTS[goal])
     parts.append("Bạn muốn kể thêm về chuyện này không?")
-    return " ".join(parts)
+    return f"{_music_tag(text, label, history)}\n{' '.join(parts)}"

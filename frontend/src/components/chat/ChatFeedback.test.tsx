@@ -38,6 +38,7 @@ function chatResponse(over: Partial<ChatResponse> = {}): ChatResponse {
       degraded: false,
       latency_ms: 5,
       warnings: [],
+      music_decision: "chip",
     },
     ...over,
   }

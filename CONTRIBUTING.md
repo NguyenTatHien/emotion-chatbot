@@ -75,6 +75,8 @@ Test `test_import_is_light` sẽ báo lỗi nếu bạn import thư viện nặn
 - Không commit `.env`, khóa API, trọng số mô hình (`*.bin`, `*.safetensors`, `*.pt`), file audio.
 - Chuỗi hiển thị cho người dùng viết bằng tiếng Việt có dấu; tên biến/hàm bằng tiếng Anh.
 - `safety`: không tự bịa số điện thoại hỗ trợ. Số đường dây do Người 3 kiểm chứng rồi điền vào `SAFETY_HOTLINE_TEXT`.
+- `llm` (Người 3): backend yêu cầu **dòng đầu tiên** của câu trả lời là `[NHAC:CO]` hoặc `[NHAC:KHONG]` (xem system prompt trong `modules/llm.py` và `app/gemini.py`); backend tách thẻ trước khi trả về, không có thẻ thì không gợi ý nhạc (trừ khi người dùng bấm chip). Đừng tự cắt `history`: backend đã giới hạn độ dài và có thể đặt ở đầu một cặp tin bắt đầu bằng `[BỐI CẢNH CUỘC TRÒ CHUYỆN` (tóm tắt các lượt trước, không phải tin nhắn mới); nếu cần trần an toàn thì cắt theo số tin và luôn giữ cặp tin đó. Giữ nguyên chữ ký `generate_reply(text, emotion, arousal, history, goal=None)`.
+- `music` (Người 5): `recommend()` không còn được gọi ở mọi lượt, chỉ khi người dùng bấm chip hoặc LLM gắn thẻ `[NHAC:CO]`; kết quả rỗng hoặc lỗi vẫn là trường hợp hợp lệ.
 - `music`: `backend/data/songs.csv` hiện có 33 bài demo với link YouTube thật (đã kiểm tra cho phép nhúng), nhãn `emotion_tags`/`goal_tags`/`energy` gắn tay để mô phỏng. Người 5 mở rộng và chuẩn hoá nhãn, giữ nguyên các cột; kiểm tra link mới bằng `https://www.youtube.com/oembed?format=json&url=<link>` (200 = tồn tại và cho nhúng).
 
 ## Nhánh và pull request

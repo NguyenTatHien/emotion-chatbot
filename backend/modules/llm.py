@@ -24,9 +24,25 @@ _DEFAULT_MODEL = "Qwen/Qwen2.5-3B-Instruct"
 # Chuỗi trả khi model lỗi/quá tải — contract bắt buộc non-empty str.
 _SAFE_REPLY = "Mình ở đây, bạn yên tâm kể mình nghe nha."
 
-# Giới hạn lượt lịch sử đưa vào prompt (backend cũng cắt 6 lượt, chặn lại
-# ở đây phòng khi test gọi trực tiếp với history dài).
-_MAX_HISTORY_TURNS = 6
+# Backend là nơi duy nhất quyết định độ dài lịch sử (bối cảnh + các lượt gần nguyên văn,
+# tối đa ~30 tin). Đây chỉ là trần an toàn theo SỐ TIN (không phải số lượt) phòng khi gọi
+# trực tiếp với history rất dài; cặp tin bối cảnh đầu (bắt đầu bằng `[BỐI CẢNH`) luôn được giữ.
+_MAX_HISTORY_MESSAGES = 40
+_CONTEXT_MARKER = "[BỐI CẢNH"
+
+# Luật thẻ nhạc + giải thích đoạn bối cảnh (backend tách thẻ khỏi câu trả lời).
+_MUSIC_TAG_RULES = (
+    "Dòng đầu tiên của câu trả lời bắt buộc là [NHAC:CO] hoặc [NHAC:KHONG], "
+    "sau đó xuống dòng rồi mới trả lời. "
+    "[NHAC:CO] khi người dùng muốn nghe nhạc / hỏi bài hát, hoặc đang buồn, lo âu, "
+    "căng thẳng kéo dài và nghe nhạc có thể giúp họ dịu lại; không chọn CO nếu vừa gợi ý "
+    "nhạc ở lượt ngay trước hoặc người dùng đã nói không muốn nghe nhạc. "
+    "[NHAC:KHONG] với chào hỏi, cảm ơn, hỏi thông tin, trò chuyện thường, "
+    "hoặc khi đang kể dở chuyện. "
+    "Không nhắc tới thẻ này hay tự liệt kê bài hát trong câu trả lời. "
+    "Đoạn bắt đầu bằng [BỐI CẢNH CUỘC TRÒ CHUYỆN] là tóm tắt các lượt trước, "
+    "không phải tin nhắn mới."
+)
 
 _GOAL_HINTS = {
     "xoa_diu": "Lời khuyên: trấn an, nhẹ nhàng, đồng hành.",
@@ -79,6 +95,16 @@ def _emotion_label(emotion: object) -> str:
     return str(emotion or "Other")
 
 
+def _limit_history(history: list[dict]) -> list[dict]:
+    """Chỉ chặn trần theo số tin; luôn giữ cặp tin bối cảnh đầu nếu có."""
+    if len(history) <= _MAX_HISTORY_MESSAGES:
+        return history
+    first = str((history[0] or {}).get("content") or "")
+    if first.lstrip().startswith(_CONTEXT_MARKER):
+        return history[:2] + history[-(_MAX_HISTORY_MESSAGES - 2):]
+    return history[-_MAX_HISTORY_MESSAGES:]
+
+
 def _build_messages(
     text: str, emotion: object, arousal: str, history: list[dict], goal: str | None
 ) -> list[dict]:
@@ -91,7 +117,8 @@ def _build_messages(
     system = (
         "Bạn là một người bạn tâm sự tiếng Việt ấm áp, giúp người dùng vui lên. "
         "Hãy trả lời NGẮN (1-3 câu), tự nhiên như nhắn tin, không liệt kê, "
-        "không dùng markdown, không nhắc bạn là AI."
+        "không dùng markdown, không nhắc bạn là AI. "
+        + _MUSIC_TAG_RULES
     )
     emotion_desc = f"Hệ thống phát hiện cảm xúc: {_emotion_label(emotion)}."
     if arousal:
@@ -100,7 +127,7 @@ def _build_messages(
     system = " ".join(x for x in [system, emotion_desc, goal_desc] if x)
 
     msgs = [{"role": "system", "content": system}]
-    for turn in (history or [])[-_MAX_HISTORY_TURNS:]:
+    for turn in _limit_history(history or []):
         role = turn.get("role")
         content = (turn.get("content") or "").strip()
         if role in ("user", "assistant") and content:

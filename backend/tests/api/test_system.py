@@ -23,7 +23,7 @@ def test_session_keeps_order(client):
     turn = body["turns"][0]
     assert set(turn) == {
         "turn_id", "user_text", "transcript", "reply", "emotion", "songs", "safety", "goal",
-        "llm_backend", "created_at",
+        "llm_backend", "music_decision", "rating", "created_at",
     }
 
 

@@ -5,6 +5,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Arousal = Literal["low", "medium", "high"]
+MusicDecision = Literal["chip", "llm", "llm_no", "no_tag", "safety"]
+Rating = Literal["up", "down"]
 
 
 class Emotion(BaseModel):
@@ -27,6 +29,7 @@ class Meta(BaseModel):
     degraded: bool = False
     latency_ms: int = 0
     warnings: list[str] = Field(default_factory=list)
+    music_decision: MusicDecision = "no_tag"
 
 
 class ChatResponse(BaseModel):
@@ -49,6 +52,8 @@ class SessionTurn(BaseModel):
     safety: bool = False
     goal: str | None = None
     llm_backend: str | None = None
+    music_decision: MusicDecision | None = None
+    rating: Rating | None = None
     created_at: str
 
 
@@ -73,7 +78,7 @@ class MetaResponse(BaseModel):
 class FeedbackRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=64)
     turn_id: str = Field(min_length=1, max_length=64)
-    rating: Literal["up", "down"]
+    rating: Rating
 
 
 class FeedbackResponse(BaseModel):

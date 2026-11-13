@@ -74,7 +74,8 @@ async def test_try_call_ok_timeout_and_error():
     assert res is None and "llm" in warn
 
 
-async def test_history_is_cut_to_six_turns(set_env):
+async def test_history_is_capped_by_backend(set_env):
+    """Không có khoá Gemini nên không có tóm tắt: trần = HISTORY_TURNS + 2*SUMMARY_BATCH_TURNS."""
     seen = {}
 
     def spy(text, emotion, arousal, history, goal=None):
@@ -84,17 +85,18 @@ async def test_history_is_cut_to_six_turns(set_env):
     registry.override("llm", spy)
     for i in range(8):
         await handle_chat("s1", message=f"lượt {i}")
-    assert len(seen["history"]) == 12  # 6 lượt gần nhất của lượt thứ 8
-    await handle_chat("s1", message="lượt 8")
+    assert len(seen["history"]) == 14  # lượt thứ 8 thấy đủ 7 lượt trước, chưa chạm trần
+    for i in range(8, 20):
+        await handle_chat("s1", message=f"lượt {i}")
     history = seen["history"]
-    assert len(history) == 12
-    assert history[0] == {"role": "user", "content": "lượt 2"}
-    assert history[-2]["content"] == "lượt 7"
+    assert len(history) == 2 * (6 + 2 * 4)
+    assert history[0] == {"role": "user", "content": "lượt 5"}
+    assert history[-2]["content"] == "lượt 18"
     assert [m["role"] for m in history[:2]] == ["user", "assistant"]
 
 
 async def test_history_turns_setting(set_env):
-    set_env(HISTORY_TURNS=2)
+    set_env(HISTORY_TURNS=2, SUMMARY_BATCH_TURNS=1)
     seen = {}
 
     def spy(text, emotion, arousal, history, goal=None):
@@ -102,9 +104,9 @@ async def test_history_turns_setting(set_env):
         return "ok?"
 
     registry.override("llm", spy)
-    for i in range(5):
+    for i in range(8):
         await handle_chat("s1", message=f"lượt {i}")
-    assert seen["n"] == 4
+    assert seen["n"] == 2 * (2 + 2 * 1)
 
 
 async def test_llm_and_music_run_in_parallel():
@@ -119,11 +121,30 @@ async def test_llm_and_music_run_in_parallel():
     registry.override("llm", slow_llm)
     registry.override("music", slow_music)
     start = time.perf_counter()
-    resp = await handle_chat("s1", message="mình buồn")
+    resp = await handle_chat("s1", message="mình buồn", goal="xoa_diu")
     elapsed = time.perf_counter() - start
     assert elapsed < 0.55
     assert resp.meta.latency_ms < 550
     assert len(resp.songs) == 1
+
+
+async def test_music_runs_after_llm_without_chip():
+    order = []
+
+    def llm(*a, **k):
+        order.append("llm")
+        time.sleep(0.1)
+        return "[NHAC:CO]\nmình nghe bạn?"
+
+    def music(label, arousal, goal, k=5):
+        order.append("music")
+        return []
+
+    registry.override("llm", llm)
+    registry.override("music", music)
+    resp = await handle_chat("s1", message="mình buồn")
+    assert order == ["llm", "music"]
+    assert resp.meta.music_decision == "llm"
 
 
 async def test_session_store_limits():

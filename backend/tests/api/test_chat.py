@@ -10,7 +10,7 @@ def post(client, **fields):
 
 
 def test_full_mock_turn(client):
-    r = post(client, session_id="s1", message="hôm nay mệt quá")
+    r = post(client, session_id="s1", message="hôm nay mệt quá", goal="xoa_diu")
     assert r.status_code == 200
     body = r.json()
     assert set(body) == {"turn_id", "reply", "transcript", "emotion", "songs", "safety", "meta"}
@@ -23,6 +23,7 @@ def test_full_mock_turn(client):
     assert set(body["songs"][0]) == {"title", "artist", "youtube_url", "reason"}
     meta = body["meta"]
     assert meta["degraded"] is False and meta["warnings"] == []
+    assert meta["music_decision"] == "chip"
     assert meta["modules"] == {k: "mock" for k in ("emotion", "speech", "safety", "llm", "music")}
     assert meta["model_mode"] == "mock"
     assert isinstance(meta["latency_ms"], int) and meta["latency_ms"] >= 0
@@ -173,7 +174,7 @@ def test_music_error_returns_empty_songs(client):
         raise RuntimeError("hỏng")
 
     registry.override("music", broken)
-    body = post(client, session_id="s1", message="mình buồn").json()
+    body = post(client, session_id="s1", message="mình buồn", goal="xoa_diu").json()
     assert body["songs"] == []
     assert body["meta"]["degraded"] is True
     assert any("music" in w for w in body["meta"]["warnings"])
@@ -181,7 +182,7 @@ def test_music_error_returns_empty_songs(client):
 
 def test_local_stub_module_degrades_not_500(client, set_env):
     set_env(MUSIC_MODE="local")
-    r = post(client, session_id="s1", message="mình buồn")
+    r = post(client, session_id="s1", message="mình buồn", goal="xoa_diu")
     assert r.status_code == 200
     body = r.json()
     assert body["meta"]["modules"]["music"] == "local"

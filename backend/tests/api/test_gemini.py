@@ -59,12 +59,36 @@ def test_gemini_used_when_qwen_fails(client, remote_llm, net):
     assert "mình buồn quá" in last and "Cảm xúc" in last
 
 
-def test_gemini_history_capped_at_six_turns(client, remote_llm, net):
+def test_gemini_receives_full_backend_history(client, remote_llm, net):
     route = net.post(GEMINI_URL.format("gem-test")).respond(200, json=GEMINI_OK)
-    for i in range(8):
+    for i in range(10):
         chat(client, f"lượt {i}")
-    contents = json.loads(route.calls.last.request.read())["contents"]
-    assert len(contents) == 12 + 1
+    payloads = [json.loads(c.request.read()) for c in route.calls]
+    # Lượt 10 kích hoạt tóm tắt nền cũng gọi Gemini; chỉ xét các lời gọi sinh câu trả lời.
+    chat_payloads = [
+        p for p in payloads if "đồng cảm" in p["systemInstruction"]["parts"][0]["text"]
+    ]
+    assert len(chat_payloads[-1]["contents"]) == 18 + 1  # Gemini không tự cắt thêm lịch sử
+
+
+def test_build_payload_keeps_all_18_history_messages():
+    from app import gemini
+
+    history = [
+        {"role": "user" if i % 2 == 0 else "assistant", "content": f"tin {i}"} for i in range(18)
+    ]
+    payload = gemini.build_payload("câu hiện tại", {"label": "Sadness"}, None, history, None)
+    assert len(payload["contents"]) == 18 + 1
+    assert payload["contents"][0]["parts"][0]["text"] == "tin 0"
+    assert payload["contents"][17]["role"] == "model"
+
+
+def test_gemini_system_prompt_has_music_tag_and_context_rules():
+    from app import gemini
+
+    assert "[NHAC:CO]" in gemini.SYSTEM_PROMPT and "[NHAC:KHONG]" in gemini.SYSTEM_PROMPT
+    assert "[BỐI CẢNH CUỘC TRÒ CHUYỆN]" in gemini.SYSTEM_PROMPT
+    assert "Dòng đầu tiên" in gemini.SYSTEM_PROMPT
 
 
 def test_gemini_error_falls_back_to_canned_without_leaking_key(client, remote_llm, net, caplog):

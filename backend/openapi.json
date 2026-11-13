@@ -467,6 +467,18 @@
             },
             "type": "array",
             "title": "Warnings"
+          },
+          "music_decision": {
+            "type": "string",
+            "enum": [
+              "chip",
+              "llm",
+              "llm_no",
+              "no_tag",
+              "safety"
+            ],
+            "title": "Music Decision",
+            "default": "no_tag"
           }
         },
         "type": "object",
@@ -608,6 +620,39 @@
               }
             ],
             "title": "Llm Backend"
+          },
+          "music_decision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "chip",
+                  "llm",
+                  "llm_no",
+                  "no_tag",
+                  "safety"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Music Decision"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "up",
+                  "down"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
           },
           "created_at": {
             "type": "string",

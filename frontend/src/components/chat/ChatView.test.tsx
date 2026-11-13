@@ -53,6 +53,7 @@ function chatResponse(over: Partial<ChatResponse> = {}): ChatResponse {
       degraded: false,
       latency_ms: 5,
       warnings: [],
+      music_decision: "chip",
     },
     ...over,
   }
@@ -172,6 +173,46 @@ describe("ChatView", () => {
       screen.queryByRole("button", { name: /Cảm xúc/ })
     ).not.toBeInTheDocument()
     expect(screen.queryByText("Bài thử")).not.toBeInTheDocument()
+  })
+
+  it("lượt có bài hiện dòng dẫn phía trên danh sách", async () => {
+    installFetch(() => Response.json(chatResponse()))
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText("Nhập tin nhắn"), "buồn{Enter}")
+    const lead = await screen.findByText("Vài bài có thể hợp với bạn lúc này")
+    const section = screen.getByRole("region", { name: "Bài hát gợi ý" })
+    expect(section).toContainElement(lead)
+    expect(
+      lead.compareDocumentPosition(within(section).getByRole("list")) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
+  it("lượt không có bài chỉ có câu trả lời, không có dòng dẫn và danh sách", async () => {
+    installFetch(() =>
+      Response.json(
+        chatResponse({
+          songs: [],
+          reply: "Chào bạn, mình nghe đây.",
+          meta: {
+            ...chatResponse().meta,
+            music_decision: "llm_no",
+          },
+        })
+      )
+    )
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText("Nhập tin nhắn"), "chào bạn{Enter}")
+    expect(await screen.findByText("Chào bạn, mình nghe đây.")).toBeVisible()
+    expect(
+      screen.queryByText("Vài bài có thể hợp với bạn lúc này")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("region", { name: "Bài hát gợi ý" })
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole("list", { name: /Bài/ })).not.toBeInTheDocument()
   })
 
   it("chỉ tải iframe khi bấm thẻ bài hát", async () => {

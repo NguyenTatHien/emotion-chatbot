@@ -187,3 +187,12 @@ def test_remote_without_url_fails_at_startup(set_env):
         create_app()
     with pytest.raises(ValueError, match="MODEL_SERVER_URL"), TestClient(app):
         pass
+
+
+def test_remote_reply_keeps_tag_until_backend_strips_it(client, remote, server):
+    server.post("/emotion").respond(200, json={"label": "Fear", "probs": PROBS})
+    server.post("/generate").respond(200, json={"reply": "[NHAC:CO]\nMình ở đây nghe bạn?"})
+    body = chat(client).json()
+    assert body["reply"] == "Mình ở đây nghe bạn?"
+    assert body["meta"]["music_decision"] == "llm"
+    assert body["songs"]
