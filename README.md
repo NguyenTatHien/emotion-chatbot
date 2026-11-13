@@ -21,10 +21,35 @@ Người dùng ──▶ Frontend (React) ──POST /api/chat──▶ Backend 
                                                        │ không
                                               predict_emotion()  (CafeBERT, 7 nhãn)
                                                        │
-                              generate_reply()  ║  recommend()   (chạy song song)
+                    generate_reply()  (câu trả lời mở đầu bằng thẻ [NHAC:CO|KHONG])
+                                                       │
+                       có chip mục tiêu hoặc thẻ CO? ──▶ recommend()
+                       (chip: chạy song song với generate_reply; thẻ: chạy sau)
                                                        │
                                      JSON: reply, transcript, emotion, songs, meta
 ```
+
+### Gợi ý nhạc theo ngữ cảnh
+
+Không phải lượt nào cũng có bài hát. Thứ tự quyết định, dừng ở bước đầu tiên khớp (kết quả nằm ở `meta.music_decision`):
+
+1. Safety báo rủi ro → không nhạc (`safety`).
+2. Người dùng bấm chip mục tiêu (`goal`) → luôn có nhạc (`chip`); LLM và `recommend()` chạy song song.
+3. Còn lại do LLM quyết bằng **thẻ ở dòng đầu** câu trả lời: `[NHAC:CO]` → có nhạc (`llm`), `[NHAC:KHONG]` → không (`llm_no`); `recommend()` chỉ được gọi sau khi có `CO`.
+4. Không có thẻ (LLM quên, LLM lỗi, câu soạn sẵn) → không nhạc (`no_tag`).
+
+Backend tách mọi thẻ (có hoặc không dấu, hoa hoặc thường, ở bất kỳ vị trí nào; thẻ đầu tiên quyết định) khỏi câu trả lời trước khi trả về, lưu phiên hay đưa vào lịch sử; thẻ chỉ được đọc từ câu trả lời của LLM, không từ tin nhắn người dùng. Nguồn chỉ trả đúng một thẻ thì bị coi là rỗng và chuyển sang nguồn kế tiếp. Vì vậy `songs` rỗng là kết quả bình thường của `POST /api/chat`.
+
+Mock LLM gắn thẻ tất định (chỉ để dev/test): `CO` khi chữ có `nghe nhạc`, `bài hát`, `bài nào`, `playlist`, `mở nhạc`, hoặc khi nhãn là Sadness/Fear và đã có ít nhất một tin của người dùng trong lịch sử; còn lại là `KHONG`.
+
+### Bộ nhớ hội thoại
+
+Mỗi `session_id` có bộ nhớ riêng trong RAM (mất khi restart). `history` backend gửi cho `generate_reply` gồm:
+
+- một **cặp tin bối cảnh** (user bắt đầu bằng `[BỐI CẢNH CUỘC TRÒ CHUYỆN` + assistant "Mình nhớ rồi."), chỉ khi có bản tóm tắt hoặc từng gợi ý nhạc: chứa bản tóm tắt và **hồ sơ nhạc** (tối đa 5 lượt gần nhất có bài, kèm "thích"/"không thích" từ `POST /api/feedback`);
+- mọi lượt chưa được tóm tắt, nguyên văn, tối đa `HISTORY_TURNS + 2 × SUMMARY_BATCH_TURNS` lượt gần nhất.
+
+Khi số lượt chưa tóm tắt đạt `HISTORY_TURNS + SUMMARY_BATCH_TURNS` và có `GEMINI_API_KEY`, backend tóm tắt `SUMMARY_BATCH_TURNS` lượt cũ nhất bằng Gemini **ở nền** (sau khi đã trả lời; không chặn response). Lượt có cảnh báo an toàn chỉ vào tóm tắt dưới dạng một câu trung tính. Tóm tắt lỗi, quá `SUMMARY_TIMEOUT` hoặc phiên đã bị xoá thì chỉ ghi log và giữ bản cũ. Không có khoá Gemini thì không có tóm tắt: bot vẫn có hồ sơ nhạc và các lượt gần nguyên văn.
 
 ## Công nghệ
 
@@ -129,7 +154,7 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 | `POST /api/feedback` | JSON `{session_id, turn_id, rating}` (`up`/`down`); 404 nếu lượt không có trong phiên |
 | `GET /api/feedback/export` | CSV đánh giá mới nhất theo `turn_id`; cần `Authorization: Bearer <ADMIN_TOKEN>` |
 | `GET /api/meta` | Nhãn cảm xúc, goal, mode từng module |
-| `GET /api/session/{session_id}` | Lịch sử các lượt của phiên |
+| `GET /api/session/{session_id}` | Lịch sử các lượt của phiên, mỗi lượt có `music_decision` và `rating` (`null` nếu chưa đánh giá) |
 
 ### Biến môi trường chính
 
@@ -138,7 +163,10 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 | `MODEL_MODE` | `mock` | Mode chung cho mọi module: `mock` \| `local` \| `remote` |
 | `EMOTION_MODE`, `SPEECH_MODE`, `SAFETY_MODE`, `LLM_MODE`, `MUSIC_MODE` | trống | Ghi đè mode cho từng module; riêng `LLM_MODE` nhận thêm `gemini` |
 | `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Origin được phép gọi API |
-| `HISTORY_TURNS` | `6` | Số lượt gần nhất truyền cho LLM |
+| `HISTORY_TURNS` | `6` | Số lượt gần nhất giữ nguyên văn; cũng là mốc để bắt đầu tóm tắt các lượt cũ |
+| `SUMMARY_BATCH_TURNS` | `4` | Số lượt cũ nhất gộp vào bản tóm tắt mỗi lần (tóm tắt khi chưa tóm tắt ≥ `HISTORY_TURNS + SUMMARY_BATCH_TURNS`) |
+| `SUMMARY_MAX_WORDS` | `120` | Độ dài tối đa của bản tóm tắt (từ) |
+| `SUMMARY_TIMEOUT` | `20` | Timeout lần tóm tắt nền bằng Gemini (giây) |
 | `MOCK_LATENCY_MS` | `0` | Giả độ trễ cho mock |
 | `SAFETY_HOTLINE_TEXT` | trống | Dòng hỗ trợ thêm vào thông điệp an toàn |
 | `MODEL_SERVER_URL`, `MODEL_SERVER_TOKEN` | trống | URL và bí mật dùng chung của model server (bắt buộc URL khi có module remote) |
@@ -167,7 +195,7 @@ Model mặc định `gemini-3.5-flash-lite` (dòng Flash-Lite trong danh sách m
 
 ### Đánh giá của người dùng thử (cho Người 5)
 
-Dưới mỗi câu trả lời của bot (trừ lượt an toàn) có nút "Hữu ích"/"Chưa hợp". Mỗi lần bấm ghi thêm một dòng JSONL vào `FEEDBACK_PATH` gồm `session_id, turn_id, rating, emotion_label, arousal, goal, safety, llm_backend, created_at` — **không lưu nội dung tin nhắn hay câu trả lời**. Đổi đánh giá cho cùng lượt thì dòng mới thắng. Xuất CSV (mới nhất theo `turn_id`):
+Dưới mỗi câu trả lời của bot (trừ lượt an toàn) có nút "Hữu ích"/"Chưa hợp". Mỗi lần bấm cũng ghi `rating` vào lượt tương ứng trong phiên (để hồ sơ nhạc dùng) và ghi thêm một dòng JSONL vào `FEEDBACK_PATH` gồm `session_id, turn_id, rating, emotion_label, arousal, goal, safety, llm_backend, created_at` — **không lưu nội dung tin nhắn hay câu trả lời**. Đổi đánh giá cho cùng lượt thì dòng mới thắng. Xuất CSV (mới nhất theo `turn_id`):
 
 ```bash
 curl -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:8000/api/feedback/export -o feedback.csv

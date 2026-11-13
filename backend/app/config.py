@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     MAX_AUDIO_MB: int = 5
     FFMPEG_BINARY: str = "ffmpeg"
     HISTORY_TURNS: int = 6
+    SUMMARY_BATCH_TURNS: int = 4  # số lượt cũ nhất gộp vào bản tóm tắt mỗi lần
+    SUMMARY_MAX_WORDS: int = 120
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     SAFETY_TIMEOUT: float = 5.0
@@ -41,6 +43,7 @@ class Settings(BaseSettings):
     SPEECH_TIMEOUT: float = 20.0  # transcribe
     PROSODY_TIMEOUT: float = 10.0
     GEMINI_TIMEOUT: float = 20.0
+    SUMMARY_TIMEOUT: float = 20.0  # tóm tắt nền bằng Gemini
 
     # Timeout của từng lời gọi HTTP tới model server (giây).
     REMOTE_TIMEOUT_EMOTION: float = 10.0

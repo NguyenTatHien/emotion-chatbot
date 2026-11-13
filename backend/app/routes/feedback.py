@@ -19,6 +19,7 @@ async def post_feedback(body: FeedbackRequest) -> FeedbackResponse:
     turn = next((t for t in turns if t.turn_id == body.turn_id), None)
     if turn is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy lượt trò chuyện này.")
+    await store.set_rating(body.session_id, body.turn_id, body.rating)
     await feedback.save(
         {
             "session_id": body.session_id,

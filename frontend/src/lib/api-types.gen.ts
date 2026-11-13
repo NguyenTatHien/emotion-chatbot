@@ -209,6 +209,12 @@ export interface components {
             latency_ms: number;
             /** Warnings */
             warnings?: string[];
+            /**
+             * Music Decision
+             * @default no_tag
+             * @enum {string}
+             */
+            music_decision: "chip" | "llm" | "llm_no" | "no_tag" | "safety";
         };
         /** MetaResponse */
         MetaResponse: {
@@ -254,6 +260,10 @@ export interface components {
             goal?: string | null;
             /** Llm Backend */
             llm_backend?: string | null;
+            /** Music Decision */
+            music_decision?: ("chip" | "llm" | "llm_no" | "no_tag" | "safety") | null;
+            /** Rating */
+            rating?: ("up" | "down") | null;
             /** Created At */
             created_at: string;
         };

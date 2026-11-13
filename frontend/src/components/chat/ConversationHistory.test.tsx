@@ -32,6 +32,7 @@ function reply(text: string): ChatResponse {
       degraded: false,
       latency_ms: 1,
       warnings: [],
+      music_decision: "chip",
     },
   }
 }

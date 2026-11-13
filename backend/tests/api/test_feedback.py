@@ -107,3 +107,19 @@ def test_safety_turn_feedback_records_flag(client):
     post(client, body["turn_id"], "down")
     row = lines()[0]
     assert row["safety"] is True and row["emotion_label"] is None
+
+
+def test_rating_is_written_to_session(client):
+    body = chat(client)
+    turns = client.get("/api/session/s1").json()["turns"]
+    assert turns[0]["rating"] is None
+    post(client, body["turn_id"], "up")
+    assert client.get("/api/session/s1").json()["turns"][0]["rating"] == "up"
+    post(client, body["turn_id"], "down")  # đổi ý: ghi đè
+    assert client.get("/api/session/s1").json()["turns"][0]["rating"] == "down"
+
+
+def test_unknown_turn_does_not_touch_session(client):
+    chat(client)
+    assert post(client, "khong-co").status_code == 404
+    assert client.get("/api/session/s1").json()["turns"][0]["rating"] is None
