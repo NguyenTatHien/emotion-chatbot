@@ -66,7 +66,11 @@ export interface paths {
         get: operations["session_api_session__session_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Session
+         * @description Xoá phiên khỏi bộ nhớ server; luôn 204, kể cả khi phiên không tồn tại (idempotent).
+         */
+        delete: operations["delete_session_api_session__session_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -110,6 +114,23 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Analysis
+         * @description Những gì pipeline đã dùng cho lượt này (khớp ghi chú bối cảnh gửi LLM).
+         */
+        Analysis: {
+            /** Turn */
+            turn: number;
+            /** Recent Emotions */
+            recent_emotions?: components["schemas"]["RecentEmotion"][];
+            /** Last Music Turn */
+            last_music_turn?: number | null;
+            tone?: components["schemas"]["Tone"] | null;
+            /** Music Reason */
+            music_reason: string;
+            /** Emotion Source */
+            emotion_source?: ("module" | "fallback") | null;
+        };
         /** Body_chat_api_chat_post */
         Body_chat_api_chat_post: {
             /** Session Id */
@@ -226,6 +247,7 @@ export interface components {
              * @default false
              */
             fusion_applied: boolean;
+            analysis?: components["schemas"]["Analysis"] | null;
         };
         /** MetaResponse */
         MetaResponse: {
@@ -241,6 +263,13 @@ export interface components {
             model_mode: string;
             /** Llm Backend */
             llm_backend: string;
+        };
+        /** RecentEmotion */
+        RecentEmotion: {
+            /** Turn */
+            turn: number;
+            /** Label */
+            label: string;
         };
         /** SessionResponse */
         SessionResponse: {
@@ -291,6 +320,13 @@ export interface components {
              * @default
              */
             reason: string;
+        };
+        /** Tone */
+        Tone: {
+            /** Key */
+            key: string;
+            /** Text */
+            text: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -406,6 +442,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SessionResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_session_api_session__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

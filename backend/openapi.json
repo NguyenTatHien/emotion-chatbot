@@ -115,6 +115,39 @@
             }
           }
         }
+      },
+      "delete": {
+        "summary": "Delete Session",
+        "description": "Xoá phiên khỏi bộ nhớ server; luôn 204, kể cả khi phiên không tồn tại (idempotent).",
+        "operationId": "delete_session_api_session__session_id__delete",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/feedback": {
@@ -202,6 +235,68 @@
   },
   "components": {
     "schemas": {
+      "Analysis": {
+        "properties": {
+          "turn": {
+            "type": "integer",
+            "title": "Turn"
+          },
+          "recent_emotions": {
+            "items": {
+              "$ref": "#/components/schemas/RecentEmotion"
+            },
+            "type": "array",
+            "title": "Recent Emotions"
+          },
+          "last_music_turn": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Music Turn"
+          },
+          "tone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Tone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "music_reason": {
+            "type": "string",
+            "title": "Music Reason"
+          },
+          "emotion_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "module",
+                  "fallback"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emotion Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "turn",
+          "music_reason"
+        ],
+        "title": "Analysis",
+        "description": "Những gì pipeline đã dùng cho lượt này (khớp ghi chú bối cảnh gửi LLM)."
+      },
       "Body_chat_api_chat_post": {
         "properties": {
           "session_id": {
@@ -509,6 +604,16 @@
             "type": "boolean",
             "title": "Fusion Applied",
             "default": false
+          },
+          "analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Analysis"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -560,6 +665,24 @@
           "llm_backend"
         ],
         "title": "MetaResponse"
+      },
+      "RecentEmotion": {
+        "properties": {
+          "turn": {
+            "type": "integer",
+            "title": "Turn"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "turn",
+          "label"
+        ],
+        "title": "RecentEmotion"
       },
       "SessionResponse": {
         "properties": {
@@ -725,6 +848,24 @@
           "youtube_url"
         ],
         "title": "Song"
+      },
+      "Tone": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "text"
+        ],
+        "title": "Tone"
       },
       "ValidationError": {
         "properties": {

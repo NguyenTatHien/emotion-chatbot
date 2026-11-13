@@ -55,6 +55,14 @@ function chatResponse(over: Partial<ChatResponse> = {}): ChatResponse {
       warnings: [],
       music_decision: "chip",
       fusion_applied: false,
+      analysis: {
+        turn: 1,
+        recent_emotions: [],
+        last_music_turn: null,
+        tone: { key: "sad", text: "Chậm, dịu, ghi nhận cảm xúc trước." },
+        music_reason: "Bạn đã chọn mục tiêu nghe nhạc",
+        emotion_source: "module",
+      },
     },
     ...over,
   }
@@ -90,7 +98,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe("ChatView", () => {
-  it("gửi bằng Enter, xoá ô nhập, hiện chip Buồn 62% và bài hát", async () => {
+  it("gửi bằng Enter, xoá ô nhập, hiện câu trả lời và bài hát", async () => {
     const fetchMock = installFetch(() => Response.json(chatResponse()))
     const user = userEvent.setup()
     render(<App />)
@@ -103,9 +111,8 @@ describe("ChatView", () => {
       within(screen.getByRole("log")).getByText("hôm nay mệt quá")
     ).toBeInTheDocument()
     expect(
-      await screen.findByRole("button", { name: /Cảm xúc Buồn 62%/ })
-    ).toHaveTextContent("Buồn 62%")
-    expect(screen.getByText("kích động thấp")).toBeInTheDocument()
+      await screen.findByRole("button", { name: "Nghe bài Bài thử" })
+    ).toBeInTheDocument()
 
     const calls = chatCalls(fetchMock)
     expect(calls).toHaveLength(1)
@@ -134,24 +141,41 @@ describe("ChatView", () => {
     expect(screen.getByRole("button", { name: "Gửi tin nhắn" })).toBeDisabled()
   })
 
-  it("bấm chip mở popover 7 xác suất và lưu ý", async () => {
+  it("không dán nhãn cảm xúc dưới tin của người dùng", async () => {
     installFetch(() => Response.json(chatResponse()))
     const user = userEvent.setup()
     render(<App />)
     await user.type(screen.getByLabelText("Nhập tin nhắn"), "buồn{Enter}")
-    await user.click(
-      await screen.findByRole("button", { name: /Cảm xúc Buồn/ })
-    )
-    const list = await screen.findByRole("list", {
-      name: "Xác suất từng cảm xúc",
-    })
-    const rows = within(list).getAllByRole("listitem")
-    expect(rows).toHaveLength(7)
-    expect(rows[0]).toHaveTextContent("Buồn")
-    expect(screen.getByText("Kết quả máy đoán, có thể sai")).toBeInTheDocument()
+    await screen.findByText("Nghe có vẻ bạn đang buồn.")
+    const userText = within(screen.getByRole("log")).getByText("buồn")
+    const row = userText.closest("[data-slot=message]") ?? userText.parentElement
+    expect(row).not.toHaveTextContent(/62%|kích động/i)
+    expect(
+      screen.queryByRole("button", { name: /Cảm xúc/ })
+    ).not.toBeInTheDocument()
   })
 
-  it("lượt safety hiện Alert, ẩn chip cảm xúc và bài hát", async () => {
+  it("khung Đã phân tích thu gọn, mở ra có thanh % và dòng Cách trả lời, Nhạc", async () => {
+    installFetch(() => Response.json(chatResponse()))
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText("Nhập tin nhắn"), "buồn{Enter}")
+    const summary = await screen.findByText("Đã phân tích · dưới 0,1 giây")
+    const details = summary.closest("details")!
+    expect(details.open).toBe(false)
+    await user.click(summary)
+    expect(details.open).toBe(true)
+    const list = within(details).getByRole("list", {
+      name: "Xác suất các cảm xúc chính",
+    })
+    expect(within(list).getAllByRole("listitem")).toHaveLength(4)
+    expect(list).toHaveTextContent("Buồn")
+    expect(list).toHaveTextContent("62%")
+    expect(details).toHaveTextContent("Chậm, dịu, ghi nhận cảm xúc trước.")
+    expect(details).toHaveTextContent("Bạn đã chọn mục tiêu nghe nhạc")
+  })
+
+  it("lượt safety hiện Alert, khung chỉ có An toàn và Nhạc, ẩn bài hát", async () => {
     installFetch(() =>
       Response.json(
         chatResponse({
@@ -159,6 +183,18 @@ describe("ChatView", () => {
           emotion: null,
           songs: [],
           reply: "Mình rất lo cho bạn. Hãy liên hệ người thân.",
+          meta: {
+            ...chatResponse().meta,
+            music_decision: "safety",
+            analysis: {
+              turn: 1,
+              recent_emotions: [],
+              last_music_turn: null,
+              tone: null,
+              music_reason: "Không gợi ý nhạc ở lượt cần hỗ trợ an toàn",
+              emotion_source: null,
+            },
+          },
         })
       )
     )
@@ -170,9 +206,13 @@ describe("ChatView", () => {
     )
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent("Mình rất lo cho bạn")
-    expect(
-      screen.queryByRole("button", { name: /Cảm xúc/ })
-    ).not.toBeInTheDocument()
+    const details = screen
+      .getByText(/^Đã phân tích/)
+      .closest("details") as HTMLElement
+    expect(details).toHaveTextContent("Phát hiện nội dung cần hỗ trợ")
+    expect(details).toHaveTextContent("Không gợi ý nhạc ở lượt cần hỗ trợ an toàn")
+    expect(within(details).queryByText("Cảm xúc")).not.toBeInTheDocument()
+    expect(within(details).queryByRole("list")).not.toBeInTheDocument()
     expect(screen.queryByText("Bài thử")).not.toBeInTheDocument()
   })
 
@@ -323,9 +363,8 @@ describe("ChatView", () => {
       within(screen.getByRole("log")).getByText("lượt một")
     ).toBeInTheDocument()
     expect(screen.getByText("Nghe có vẻ bạn đang buồn.")).toBeInTheDocument()
-    expect(
-      screen.getByRole("button", { name: /Cảm xúc Buồn 62%/ })
-    ).toBeInTheDocument()
+    expect(screen.getByText(/^Đã phân tích/)).toBeInTheDocument()
+    expect(screen.getByText("Chậm, dịu, ghi nhận cảm xúc trước.")).toBeInTheDocument()
     expect(
       screen.getByRole("button", { name: "Nghe bài Bài thử" })
     ).toBeInTheDocument()
@@ -359,6 +398,8 @@ describe("ChatView", () => {
       )
     ).toBeInTheDocument()
     expect(screen.getByText("trả lời cũ")).toBeInTheDocument()
+    // Tin khôi phục từ server không có analysis nên không có khung.
+    expect(screen.queryByText(/^Đã phân tích/)).not.toBeInTheDocument()
   })
 
   it("Cuộc trò chuyện mới xoá khung chat và đổi session_id", async () => {

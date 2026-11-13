@@ -89,3 +89,12 @@ def test_prompt_forbids_inventing_a_persona():
     system = msgs([])[0]["content"]
     assert "không tự kể chuyện bản thân" in system
     assert "tốt nghiệp" not in system  # ví dụ mẫu cũ khiến Qwen tự nhận "đang tốt nghiệp"
+
+
+def test_system_prompt_follows_tone_line_and_does_not_cheer_up():
+    system = msgs([])[0]["content"]
+    assert "Giọng điệu nên dùng" in system
+    assert "giúp người dùng vui lên" not in system
+    assert "Ghi chú của hệ thống cho biết đây là lượt thứ mấy" in system
+    assert "không có ghi chú của hệ thống" not in system
+    assert "phần trăm" in system

@@ -7,6 +7,7 @@ import { useTypewriter } from "@/hooks/useTypewriter"
 import type { Rating } from "@/lib/api"
 import { BotAvatar } from "./BotAvatar"
 import { FeedbackButtons } from "./FeedbackButtons"
+import { ReplyAnalysis } from "./ReplyAnalysis"
 
 interface BotMessageProps {
   message: BotMsg
@@ -22,6 +23,15 @@ export function BotMessage({ message, onRate }: BotMessageProps) {
         <BotAvatar />
       </MessageAvatar>
       <MessageContent>
+        {/* Hiện ngay khi có response, không chờ hiệu ứng gõ chữ. */}
+        {message.analysis ? (
+          <ReplyAnalysis
+            analysis={message.analysis}
+            emotion={message.emotion}
+            safety={message.safety}
+            latencyMs={message.latencyMs}
+          />
+        ) : null}
         {message.safety ? (
           <SafetyAlert text={text} />
         ) : (

@@ -44,11 +44,18 @@ Backend tách mọi thẻ (có hoặc không dấu, hoa hoặc thường, ở b�
 
 Mock LLM gắn thẻ tất định (chỉ để dev/test): `CO` khi chữ có `nghe nhạc`, `bài hát`, `bài nào`, `playlist`, `mở nhạc`, hoặc khi nhãn là Sadness/Fear và đã có ít nhất một tin của người dùng trong lịch sử; còn lại là `KHONG`.
 
+### Giọng điệu và khung "Đã phân tích"
+
+- **Giọng điệu** (`app/tone.py`): backend là nơi duy nhất chọn giọng điệu, từ cảm xúc đã qua fusion và mức kích động, theo thứ tự: nhãn cao nhất < 0.5 → `uncertain` (trung tính, hỏi thêm); Sadness + giọng `high` → `sad_high`; Sadness → `sad`; Fear → `fear`; Anger → `anger`; Disgust → `disgust`; Enjoyment → `joy`; Surprise → `surprise`; còn lại → `neutral`. Nguyên tắc: khớp cảm xúc trước, dẫn dắt sau.
+- Một câu hướng dẫn giọng điệu ngắn đi tới LLM qua dòng cuối của ghi chú bối cảnh (`Giọng điệu nên dùng: ...`); contract `generate_reply` không đổi. Prompt của Qwen (`modules/llm.py`) và Gemini yêu cầu làm theo dòng này, không nhắc tên nhãn cảm xúc hay con số phần trăm. Lượt có rủi ro an toàn không gọi LLM nên không có giọng điệu.
+- **`meta.analysis`** trong response của `POST /api/chat`: `turn` (lượt hiện tại, từ 1), `recent_emotions` (`[{turn, label}]`, tối đa 3 lượt trước; lượt an toàn có `label = "safety"`), `last_music_turn`, `tone` (`{key, text}`, `null` ở lượt an toàn), `music_reason` (câu tiếng Việt theo `music_decision`) và `emotion_source` (`module` hoặc `fallback`, `null` ở lượt an toàn). Dữ liệu lấy từ cùng ảnh chụp bộ nhớ dùng để dựng ghi chú bối cảnh nên luôn trùng với những gì LLM đã nhận.
+- Giao diện hiện phần này thành khung thu gọn "Đã phân tích · x giây" phía trên câu trả lời của bot; tin nhắn của người dùng không còn bị dán nhãn cảm xúc.
+
 ### Bộ nhớ hội thoại
 
 Mỗi `session_id` có bộ nhớ riêng trong RAM (mất khi restart). `history` backend gửi cho `generate_reply` gồm:
 
-- một **cặp tin bối cảnh** (user bắt đầu bằng `[BỐI CẢNH CUỘC TRÒ CHUYỆN` + assistant "Mình nhớ rồi."), chỉ khi có bản tóm tắt hoặc từng gợi ý nhạc: chứa bản tóm tắt và **hồ sơ nhạc** (tối đa 5 lượt gần nhất có bài, kèm "thích"/"không thích" từ `POST /api/feedback`);
+- một **cặp tin bối cảnh** (user bắt đầu bằng `[BỐI CẢNH CUỘC TRÒ CHUYỆN` + assistant "Mình nhớ rồi."), **có từ lượt đầu tiên** của mọi lượt không có rủi ro an toàn: chứa lượt thứ mấy, cảm xúc các lượt gần đây, lượt gợi ý nhạc gần nhất, dòng `Giọng điệu nên dùng: ...` (xem mục dưới), cùng bản tóm tắt và **hồ sơ nhạc** (tối đa 5 lượt gần nhất có bài, kèm "thích"/"không thích" từ `POST /api/feedback`) khi có;
 - mọi lượt chưa được tóm tắt, nguyên văn, tối đa `HISTORY_TURNS + 2 × SUMMARY_BATCH_TURNS` lượt gần nhất.
 
 Khi số lượt chưa tóm tắt đạt `HISTORY_TURNS + SUMMARY_BATCH_TURNS` và có `GEMINI_API_KEY`, backend tóm tắt `SUMMARY_BATCH_TURNS` lượt cũ nhất bằng Gemini **ở nền** (sau khi đã trả lời; không chặn response). Lượt có cảnh báo an toàn chỉ vào tóm tắt dưới dạng một câu trung tính. Tóm tắt lỗi, quá `SUMMARY_TIMEOUT` hoặc phiên đã bị xoá thì chỉ ghi log và giữ bản cũ. Không có khoá Gemini thì không có tóm tắt: bot vẫn có hồ sơ nhạc và các lượt gần nguyên văn.
@@ -157,6 +164,7 @@ Kiểm tra: `ruff check .` và `pytest -q` trong `backend/`. Tài liệu API tư
 | `GET /api/feedback/export` | CSV đánh giá mới nhất theo `turn_id`; cần `Authorization: Bearer <ADMIN_TOKEN>` |
 | `GET /api/meta` | Nhãn cảm xúc, goal, mode từng module |
 | `GET /api/session/{session_id}` | Lịch sử các lượt của phiên, mỗi lượt có `music_decision` và `rating` (`null` nếu chưa đánh giá) |
+| `DELETE /api/session/{session_id}` | Xoá phiên khỏi bộ nhớ server (các lượt, bản tóm tắt, trạng thái tóm tắt); luôn trả 204 kể cả khi phiên không tồn tại; `session_id` dài 1–64 ký tự (quá dài thì 422). Tác vụ tóm tắt đang chạy cho phiên vừa xoá bị bỏ kết quả |
 
 ### Biến môi trường chính
 
@@ -234,10 +242,11 @@ pnpm dev            # http://localhost:5173, proxy /api -> http://127.0.0.1:8000
 
 Ghi chú kỹ thuật:
 
-- Khởi tạo bằng `shadcn` CLI **4.23.0** (`pnpm dlx shadcn@latest init -t vite -b radix -p nova`), style `radix-nova`, base Radix. Component shadcn nằm ở `src/components/ui/` (không sửa tay); phần tuỳ biến nằm ở `src/components/{chat,emotion,music,system}/`. Các component `message`, `message-scroller`, `bubble` phụ thuộc gói `@shadcn/react`.
+- Khởi tạo bằng `shadcn` CLI **4.23.0** (`pnpm dlx shadcn@latest init -t vite -b radix -p nova`), style `radix-nova`, base Radix. Component shadcn nằm ở `src/components/ui/` (không sửa tay); phần tuỳ biến nằm ở `src/components/{chat,music,system}/`. Các component `message`, `message-scroller`, `bubble` phụ thuộc gói `@shadcn/react`.
 - Không dùng Vercel AI SDK; state chat tự quản bằng `useReducer` (`src/hooks/chat-state.ts`, `useChat.ts`). Gọi API bằng `fetch` với đường dẫn tương đối `/api`.
 - Font Be Vietnam Pro tự host qua `@fontsource` (không gọi Google Fonts). Màu chủ đạo violet-600; 7 màu cảm xúc là biến CSS `--emo-*` trong `src/index.css` (light/dark).
-- Phiên: `session_id` và tin nhắn lưu trong localStorage (`ec.session_id`, `ec.messages.<id>`); nếu localStorage trống thì khôi phục từ `GET /api/session/{id}`. Danh sách cuộc trò chuyện ở sidebar lưu ở `ec.conversations` (tối đa 50 cuộc, chỉ trên trình duyệt đó).
+- Khung "Đã phân tích" (`ReplyAnalysis`, phần tử `<details>` gốc, mặc định thu gọn) nằm trên câu trả lời của bot và hiện ngay khi có response, không chờ hiệu ứng gõ chữ. Phần phân tích (`analysis`, `emotion`, `safety`, `latency`) được lưu cùng tin bot trong localStorage; tin cũ không có `analysis` thì không hiện khung.
+- Phiên: `session_id` và tin nhắn lưu trong localStorage (`ec.session_id`, `ec.messages.<id>`); nếu localStorage trống thì khôi phục từ `GET /api/session/{id}`. Danh sách cuộc trò chuyện ở sidebar lưu ở `ec.conversations` (tối đa 50 cuộc, chỉ trên trình duyệt đó). Xoá một cuộc ở sidebar sẽ xoá bản sao trong trình duyệt và gọi `DELETE /api/session/{id}` (không chờ kết quả; lỗi mạng bị bỏ qua, không hiện lỗi).
 - Bố cục: từ 1024px có sidebar cố định (thu gọn được, `Ctrl+B`); dưới 1024px (điện thoại, tablet) sidebar là ngăn kéo. Giao diện sáng/tối/theo hệ thống ở nút trên header.
 - Bài hát: bấm thẻ mở popup trình phát YouTube (`SongPlayerDialog`: chuyển bài bằng nút hoặc phím ←/→, đóng là dừng phát). **Khi chạy ở `localhost`/`127.0.0.1`, nhiều video nhạc báo "This video is unavailable"** vì chủ video chỉ cho nhúng trên tên miền thật; trên https://emotion.hiennguyen.io.vn thì phát bình thường. Nút "Mở trên YouTube" luôn dùng được.
 - Ghi âm: `useRecorder` (MediaRecorder, tự chọn `audio/webm;codecs=opus` > `audio/ogg;codecs=opus` > `audio/mp4`, tự dừng ở 30 giây), `useSpeechFallback` (Web Speech API `vi-VN`, chạy song song để hiện chữ trực tiếp và gửi `transcript_hint`), `RecordingBar`, `VoiceBubble`. Bản ghi để phát lại chỉ nằm trong RAM của tab (object URL, thu hồi khi bắt đầu cuộc trò chuyện mới) và không lưu vào localStorage.

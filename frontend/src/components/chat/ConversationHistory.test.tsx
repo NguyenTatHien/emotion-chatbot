@@ -38,9 +38,13 @@ function reply(text: string): ChatResponse {
   }
 }
 
-function installFetch() {
+type DeleteHandler = (url: string) => Response | Promise<Response>
+
+function installFetch(onDelete?: DeleteHandler) {
   const fn = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === "/api/meta") return Response.json(META)
+    if (url.startsWith("/api/session/") && init?.method === "DELETE")
+      return onDelete ? onDelete(url) : new Response(null, { status: 204 })
     if (url.startsWith("/api/session/"))
       return Response.json({ session_id: "x", turns: [] })
     if (url === "/api/chat") {
@@ -119,6 +123,82 @@ describe("Lịch sử trò chuyện ở sidebar", { timeout: 15_000 }, () => {
       ([k, v]) => k.startsWith("ec.messages.") && v.includes("cần xoá")
     )
     expect(stored).toHaveLength(0)
+  })
+
+  it("xoá cuộc trò chuyện gọi DELETE /api/session/{id} đúng id của cuộc đó", async () => {
+    const fn = installFetch()
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText("Nhập tin nhắn"), "cần xoá{Enter}")
+    await screen.findByText("trả lời cần xoá")
+    const chat = fn.mock.calls.find(([url]) => url === "/api/chat")!
+    const sessionId = String((chat[1]?.body as FormData).get("session_id"))
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Xoá cuộc trò chuyện: cần xoá",
+      })
+    )
+    await waitFor(() =>
+      expect(
+        fn.mock.calls.filter(([, init]) => init?.method === "DELETE")
+      ).toHaveLength(1)
+    )
+    const [url, init] = fn.mock.calls.find(
+      ([, i]) => i?.method === "DELETE"
+    )!
+    expect(url).toBe(`/api/session/${encodeURIComponent(sessionId)}`)
+    expect(init?.method).toBe("DELETE")
+  })
+
+  it("DELETE lỗi mạng: cuộc trò chuyện vẫn biến mất và không hiện lỗi", async () => {
+    installFetch(() => {
+      throw new TypeError("Failed to fetch")
+    })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText("Nhập tin nhắn"), "mất mạng{Enter}")
+    await screen.findByText("trả lời mất mạng")
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Xoá cuộc trò chuyện: mất mạng",
+      })
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "mất mạng" })
+      ).not.toBeInTheDocument()
+    )
+    expect(
+      screen.getByRole("heading", { name: "Chào bạn, mình ở đây để lắng nghe" })
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    expect(screen.queryByText(/lỗi|không được|Failed/i)).not.toBeInTheDocument()
+    const stored = Object.entries(localStorage).filter(
+      ([k, v]) => k.startsWith("ec.messages.") && v.includes("mất mạng")
+    )
+    expect(stored).toHaveLength(0)
+  })
+
+  it("DELETE trả lỗi 500: vẫn xoá ở sidebar và không hiện lỗi", async () => {
+    installFetch(() => new Response("lỗi", { status: 500 }))
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText("Nhập tin nhắn"), "server lỗi{Enter}")
+    await screen.findByText("trả lời server lỗi")
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Xoá cuộc trò chuyện: server lỗi",
+      })
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "server lỗi" })
+      ).not.toBeInTheDocument()
+    )
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })
 
   it("tải lại trang vẫn giữ danh sách", async () => {

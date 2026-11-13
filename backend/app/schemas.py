@@ -25,6 +25,28 @@ class Song(BaseModel):
     reason: str = ""
 
 
+class Tone(BaseModel):
+    key: str
+    text: str
+
+
+class RecentEmotion(BaseModel):
+    turn: int
+    # Nhãn cảm xúc của lượt; "safety" cho lượt có nội dung cần hỗ trợ an toàn.
+    label: str
+
+
+class Analysis(BaseModel):
+    """Những gì pipeline đã dùng cho lượt này (khớp ghi chú bối cảnh gửi LLM)."""
+
+    turn: int
+    recent_emotions: list[RecentEmotion] = Field(default_factory=list)
+    last_music_turn: int | None = None
+    tone: Tone | None = None
+    music_reason: str
+    emotion_source: Literal["module", "fallback"] | None = None
+
+
 class Meta(BaseModel):
     llm_backend: str
     model_mode: str
@@ -34,6 +56,7 @@ class Meta(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     music_decision: MusicDecision = "no_tag"
     fusion_applied: bool = False
+    analysis: Analysis | None = None
 
 
 class ChatResponse(BaseModel):

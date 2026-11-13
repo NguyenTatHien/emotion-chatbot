@@ -41,7 +41,7 @@ _MUSIC_TAG_RULES = (
     "Mọi trường hợp khác chọn [NHAC:KHONG], nhất là: lượt đầu tiên; lần đầu kể một chuyện "
     "(hãy lắng nghe trước); cảm xúc Bình thường hoặc Vui vẻ; chào hỏi, cảm ơn, hỏi thông tin; "
     "người dùng đã nói không muốn nghe nhạc.\n"
-    "Nếu đầu lịch sử không có ghi chú của hệ thống thì đây là lượt đầu tiên.\n"
+    "Ghi chú của hệ thống cho biết đây là lượt thứ mấy.\n"
     "Ví dụ:\n"
     '"chào bạn" → [NHAC:KHONG]\n'
     '"mình đang phân vân không biết nên chọn hướng nào" → [NHAC:KHONG]\n'
@@ -55,9 +55,9 @@ _MUSIC_TAG_RULES = (
 # Qwen chép lại nhãn `[BỐI CẢNH ...]` và tự viết "tóm tắt" vào câu trả lời.
 _CONTEXT_NOTE = (
     "Tin nhắn đầu tiên trong lịch sử là ghi chú của hệ thống (lượt thứ mấy, cảm xúc các lượt "
-    "gần đây, lần gợi ý nhạc gần nhất, tóm tắt), không phải lời người dùng. Dùng nó để chọn thẻ "
-    "nhạc và hiểu bối cảnh; không chép lại, không nhắc tới và không tự viết tóm tắt trong câu "
-    "trả lời."
+    "gần đây, lần gợi ý nhạc gần nhất, tóm tắt, giọng điệu nên dùng), không phải lời người "
+    "dùng. Dùng nó để chọn thẻ nhạc, chọn giọng điệu và hiểu bối cảnh; không chép lại, không "
+    "nhắc tới và không tự viết tóm tắt trong câu trả lời."
 )
 
 # Tên tiếng Việt của nhãn cảm xúc (khớp backend `app/constants.py` và frontend), để luật thẻ
@@ -155,9 +155,12 @@ def _build_messages(
     [{role:'user'|'assistant', content:str}] cũ.
     """
     system = (
-        "Bạn là một người bạn tâm sự tiếng Việt ấm áp, giúp người dùng vui lên. "
+        "Bạn là một người bạn tâm sự tiếng Việt ấm áp, đồng hành, lắng nghe, "
+        "trả lời theo đúng tâm trạng người dùng. "
         "Hãy trả lời NGẮN (1-3 câu), tự nhiên như nhắn tin, không liệt kê, "
         "không dùng markdown, không nhắc bạn là AI. "
+        "Làm theo dòng \"Giọng điệu nên dùng\" trong ghi chú của hệ thống. "
+        "Không nhắc tên nhãn cảm xúc hay con số phần trăm. "
         "Bạn là chatbot đồng hành, không đóng vai một người có đời sống riêng: "
         "không tự kể chuyện bản thân và không bịa thông tin về mình "
         "(học hành, công việc, tuổi, nơi ở, chuyện riêng); chỉ tập trung vào người dùng. "

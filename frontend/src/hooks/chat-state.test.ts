@@ -50,6 +50,61 @@ describe("chatReducer", () => {
     expect(s.messages[1]).toMatchObject({ role: "bot", text: "Mình nghe đây.", fresh: true })
   })
 
+  it("resolve lưu analysis, emotion, latency vào tin bot", () => {
+    const analysis = {
+      turn: 2,
+      recent_emotions: [{ turn: 1, label: "Fear" }],
+      last_music_turn: null,
+      tone: { key: "sad", text: "Chậm, dịu." },
+      music_reason: "Chưa cần gợi ý nhạc ở lượt này",
+      emotion_source: "module" as const,
+    }
+    let s = sent(initialState("s", []))
+    s = chatReducer(s, {
+      type: "resolve",
+      userId: "u1",
+      botId: "b1",
+      response: {
+        ...response,
+        meta: { ...response.meta, latency_ms: 1234, analysis },
+      },
+      createdAt: "now",
+    })
+    expect(s.messages[1]).toMatchObject({
+      analysis,
+      emotion: { label: "Sadness" },
+      latencyMs: 1234,
+    })
+  })
+
+  it("response không có analysis: tin bot không có khung", () => {
+    let s = sent(initialState("s", []))
+    s = chatReducer(s, { type: "resolve", userId: "u1", botId: "b1", response, createdAt: "now" })
+    expect(s.messages[1]).toMatchObject({ analysis: null })
+  })
+
+  it("analysis và emotion của tin bot sống sót qua toStored (localStorage)", () => {
+    const analysis = {
+      turn: 1,
+      recent_emotions: [],
+      last_music_turn: null,
+      tone: null,
+      music_reason: "Không gợi ý nhạc ở lượt cần hỗ trợ an toàn",
+      emotion_source: null,
+    }
+    let s = sent(initialState("s", []))
+    s = chatReducer(s, {
+      type: "resolve",
+      userId: "u1",
+      botId: "b1",
+      response: { ...response, meta: { ...response.meta, analysis } },
+      createdAt: "now",
+    })
+    const round = JSON.parse(JSON.stringify(toStored(s.messages))) as ChatMessage[]
+    expect(round[1]).toMatchObject({ analysis, emotion: { label: "Sadness" }, latencyMs: 1 })
+    expect(round[1]).not.toHaveProperty("fresh")
+  })
+
   it("lượt safety bỏ cảm xúc và bài hát", () => {
     let s = sent(initialState("s", []))
     s = chatReducer(s, {
@@ -60,7 +115,7 @@ describe("chatReducer", () => {
       createdAt: "now",
     })
     expect(s.messages[0]).toMatchObject({ emotion: null })
-    expect(s.messages[1]).toMatchObject({ safety: true, songs: [] })
+    expect(s.messages[1]).toMatchObject({ safety: true, songs: [], emotion: null })
   })
 
   it("fail rồi retry rồi resolve", () => {

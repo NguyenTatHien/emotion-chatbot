@@ -25,11 +25,20 @@ _MUSIC_REQUESTS = ("nghe nhạc", "bài hát", "bài nào", "playlist", "mở nh
 _MUSIC_LABELS = ("Sadness", "Fear")
 
 
+def _user_turns(history: list[dict]) -> list[str]:
+    """Lời người dùng trong lịch sử, bỏ ghi chú bối cảnh của hệ thống."""
+    return [
+        m["content"]
+        for m in history
+        if m.get("role") == "user" and not str(m.get("content", "")).startswith("[BỐI CẢNH")
+    ]
+
+
 def _music_tag(text: str, label: str, history: list[dict]) -> str:
     """Thẻ nhạc tất định (chỉ để dev/test, không phải hành vi sản phẩm)."""
     lowered = (text or "").lower()
     asked = any(phrase in lowered for phrase in _MUSIC_REQUESTS)
-    has_user_turn = any(m.get("role") == "user" for m in history)
+    has_user_turn = bool(_user_turns(history))
     if asked or (label in _MUSIC_LABELS and has_user_turn):
         return "[NHAC:CO]"
     return "[NHAC:KHONG]"
@@ -45,7 +54,7 @@ def generate_reply(
     simulate_latency()
     label = (emotion or {}).get("label", "Other")
     parts = [_OPENERS.get(label, _OPENERS["Other"])]
-    previous = [m["content"] for m in history if m.get("role") == "user"]
+    previous = _user_turns(history)
     if previous:
         parts.append(f"Lúc nãy bạn có nhắc đến \"{previous[-1][:40]}\", mình vẫn nhớ điều đó.")
     if goal in _GOAL_HINTS:

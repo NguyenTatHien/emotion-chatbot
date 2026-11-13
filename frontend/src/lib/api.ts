@@ -2,6 +2,7 @@ import type { components } from "./api-types.gen"
 
 export type ChatResponse = components["schemas"]["ChatResponse"]
 export type Emotion = components["schemas"]["Emotion"]
+export type Analysis = components["schemas"]["Analysis"]
 export type Song = components["schemas"]["Song"]
 export type ResponseMeta = components["schemas"]["Meta"]
 export type SessionResponse = components["schemas"]["SessionResponse"]
@@ -99,6 +100,18 @@ export async function sendFeedback(
     }),
     signal,
   })
+  if (!res.ok) throw await toApiError(res)
+}
+
+/** Xoá phiên trên server (204 kể cả khi phiên không tồn tại). */
+export async function deleteSession(
+  sessionId: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/session/${encodeURIComponent(sessionId)}`,
+    { method: "DELETE", signal }
+  )
   if (!res.ok) throw await toApiError(res)
 }
 
