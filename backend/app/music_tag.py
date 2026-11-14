@@ -20,7 +20,10 @@ def _value(name: str) -> str:
     return rf"(?P<{name}>c[{_O}]|kh[{_O}]ng)"
 
 
-_BRACKETED = rf"\[\s*{_NHAC}\s*[:：]\s*{_value('b')}\s*\]"
+# Model nhỏ đôi khi nhại few-shot ví dụ và sinh thẻ bể dạng `[M NHAC:KHONG]`,
+# `[MNHAC:KHONG]` — cho phép ≤3 ký tự nhiễu giữa `[` và chữ NHAC (chữ/số, có/không
+# khoảng trắng), giữ mọi biến thể cũ.
+_BRACKETED = rf"\[\s*\w{{0,3}}\s*{_NHAC}\s*[:：]\s*{_value('b')}\s*\]"
 _BARE_LINE = rf"^[ \t]*{_NHAC}[ \t]*[:：][ \t]*{_value('l')}[ \t]*$"
 
 _TAG_RE = re.compile(f"{_BRACKETED}|{_BARE_LINE}", re.IGNORECASE | re.MULTILINE)
