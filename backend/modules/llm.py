@@ -12,17 +12,19 @@ Thiết kế:
 - max_new_tokens=128 giữ độ trễ thực tế < 30s. Giới hạn cứng về thời gian
   nằm ở caller (`try_call` + LLM_TIMEOUT trong app/pipeline.py) — không
   tự chấm điểm thời gian trong module vì pipeline đã có fallback Gemini/canned.
-- Bất kỳ lỗi nào (tải model, tokenize, generation) đều trả về chuỗi an toàn
-  non-empty thay vì raise — contract module yêu cầu luôn trả kiểu str.
+- Lỗi (tải model, tokenize, generation) được in traceback rồi raise lên: backend coi đó là
+  module lỗi và tự chuyển sang Gemini/câu soạn sẵn (`generate_with_fallback`). Trước đây lỗi
+  bị nuốt và trả một câu cố định, khiến web lặp mãi câu đó mà không ai thấy nguyên nhân.
 
 Cache model + tokenizer ở mức module (`_LLM_STATE`) — load 1 lần/lifetime.
 """
 
+import logging
+
+_logger = logging.getLogger("emotion_chatbot.modules.llm")
+
 _LLM_STATE: dict | None = None
 _DEFAULT_MODEL = "Qwen/Qwen2.5-3B-Instruct"
-
-# Chuỗi trả khi model lỗi/quá tải — contract bắt buộc non-empty str.
-_SAFE_REPLY = "Mình ở đây, bạn yên tâm kể mình nghe nha."
 
 # Backend là nơi duy nhất quyết định độ dài lịch sử (bối cảnh + các lượt gần nguyên văn,
 # tối đa ~30 tin). Đây chỉ là trần an toàn theo SỐ TIN (không phải số lượt) phòng khi gọi
@@ -107,7 +109,7 @@ def _get_llm():
         dtype = torch.float32  # CPU fp32 ổn định và đôi khi còn nhanh hơn
 
     model = AutoModelForCausalLM.from_pretrained(
-        model_name, torch_dtype=dtype, device_map=device, low_cpu_mem_usage=True
+        model_name, dtype=dtype, device_map=device, low_cpu_mem_usage=True
     )
     model.eval()
 
@@ -192,8 +194,8 @@ def generate_reply(
 
     Đầu vào: text (câu thoại), emotion (dict {label, props} hoặc nhãn),
     arousal ('' nếu không có), history, goal.
-    Đầu ra: chuỗi tiếng Việt non-empty — mọi lỗi (tải model/tokenize/generate)
-    đều trả `_SAFE_REPLY` thay vì raise.
+    Đầu ra: chuỗi tiếng Việt non-empty. Lỗi (tải model/tokenize/generate) được ghi
+    traceback rồi raise để backend chuyển sang nguồn dự phòng.
     """
     try:
         state = _get_llm()
@@ -230,6 +232,9 @@ def generate_reply(
             )
         gen_ids = out_ids[0][inputs["input_ids"].shape[-1]:]
         reply = tokenizer.decode(gen_ids, skip_special_tokens=True).strip()
-    except Exception:  # pylint:disable=broad-except - mọi lỗi model vẫn trả str
-        return _SAFE_REPLY
+    except Exception:
+        # In đủ traceback ra log (Colab/uvicorn) để biết nguyên nhân, rồi raise để backend
+        # dùng Gemini thay vì trả một câu cố định.
+        _logger.exception("generate_reply lỗi")
+        raise
     return reply or "Mình nghe bạn rồi, muốn kể thêm không nè?"

@@ -64,10 +64,18 @@ def test_safety_cap_without_context_keeps_latest_messages():
     assert built == history[-llm._MAX_HISTORY_MESSAGES:]
 
 
-def test_safe_reply_has_no_tag():
-    from app.music_tag import split_music_tag
+def test_model_error_is_logged_and_raised(monkeypatch, caplog):
+    """Lỗi nạp/chạy mô hình phải lộ ra (log + raise) để backend chuyển sang Gemini,
+    không được nuốt rồi trả một câu cố định."""
+    import pytest
 
-    assert split_music_tag(llm._SAFE_REPLY) == (llm._SAFE_REPLY, None)
+    def boom():
+        raise RuntimeError("CUDA out of memory")
+
+    monkeypatch.setattr(llm, "_get_llm", boom)
+    with pytest.raises(RuntimeError, match="CUDA out of memory"):
+        llm.generate_reply("mình buồn", {"label": "Sadness", "probs": {"Sadness": 0.8}}, "", [])
+    assert "generate_reply lỗi" in caplog.text
 
 
 def test_emotion_note_in_vietnamese_with_probability():
