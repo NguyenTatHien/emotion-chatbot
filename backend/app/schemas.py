@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Arousal = Literal["low", "medium", "high"]
-MusicDecision = Literal["chip", "llm", "llm_guard", "llm_no", "no_tag", "safety"]
+MusicDecision = Literal["chip", "request", "llm", "llm_guard", "llm_no", "no_tag", "safety"]
 Rating = Literal["up", "down"]
 
 

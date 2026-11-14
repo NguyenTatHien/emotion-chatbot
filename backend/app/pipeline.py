@@ -19,9 +19,9 @@ from pydantic import ValidationError
 
 from app import fallbacks, gemini, memory, registry
 from app.config import get_settings
-from app.constants import AROUSAL_LEVELS, LABELS, MODULE_NAMES
+from app.constants import AROUSAL_LEVELS, LABELS, LABELS_VI, MODULE_NAMES
 from app.fusion import apply_fusion
-from app.music_guard import GUARD_REASONS, check_music_tag
+from app.music_guard import GUARD_REASONS, asks_for_music, check_music_tag
 from app.music_tag import split_music_tag
 from app.schemas import (
     Analysis,
@@ -42,6 +42,7 @@ logger = logging.getLogger("emotion_chatbot.pipeline")
 
 MUSIC_REASONS: dict[str, str] = {
     "chip": "Bạn đã chọn mục tiêu nghe nhạc",
+    "request": "Bạn xin gợi ý nhạc — chọn từ danh sách thật của hệ thống",
     "llm": "Bot thấy lúc này nghe nhạc có thể giúp bạn",
     "llm_guard": "Bot định gợi ý nhạc nhưng lượt này chưa phù hợp",
     "llm_no": "Chưa cần gợi ý nhạc ở lượt này",
@@ -335,7 +336,41 @@ async def handle_chat(
             )
 
         music_result: tuple[object | None, str | None] | None = None
-        if goal:
+        if asks_for_music(text):
+            # Route-fix (pattern RAG "retrieve-then-generate" — RagON verified): người dùng
+            # YÊU CẦU tường minh xin nhạc → backend chọn bài THẬT. Câu trả lời là TEMPLATE
+            # deterministic — KHÔNG gọi LLM: 8 seeds đo được cho thấy model 3B bẻ chữ/làm rác
+            # khi bị yêu cầu liệt kê (chat.md lượt 9-15); intent này đáp hoàn toàn bằng dữ
+            # liệu thật → không thể hallucination by construction, trễ < 0,5 s.
+            music_decision = "request"
+            music_result = await run_music()
+            preview = _valid_songs(music_result[0]) if music_result[1] is None else None
+            songs_preview = preview or []
+            if songs_preview:
+                reply = (
+                    f"Mình chọn sẵn {len(songs_preview)} bài hợp với tâm trạng "
+                    f"{LABELS_VI.get(label, label)} của bạn, xem ngay bên dưới nha."
+                )
+                reply, llm_backend, llm_warnings = (
+                    reply,
+                    "template",
+                    [],
+                )
+                music_flag = None
+            else:
+                # music lỗi → luồng cũ (LLM tự quyết, guard chặn lại như trước)
+                reply, llm_backend, llm_warnings, music_flag = await generate_with_fallback(
+                    text, llm_emotion, arousal, history, goal
+                )
+                if music_flag is True:
+                    accepted, guard_code = check_music_tag(text, label, emotion_source)
+                    if accepted:
+                        music_decision = "llm"
+                        music_result = await run_music()
+                    else:
+                        music_decision = "llm_guard"
+                        guard_reason = GUARD_REASONS[guard_code or "neutral"]
+        elif goal:
             # Có chip: chọn bài TRƯỚC (chỉ đọc catalog, rất nhanh) rồi ghi các bài vào ghi chú bối
             # cảnh, để câu trả lời của LLM giới thiệu đúng những bài sẽ hiện kèm.
             music_decision = "chip"

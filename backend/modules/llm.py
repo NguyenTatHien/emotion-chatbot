@@ -65,17 +65,9 @@ _CONTEXT_NOTE = (
     "nhắc tới và không tự viết tóm tắt trong câu trả lời."
 )
 
-# Tên tiếng Việt của nhãn cảm xúc (khớp backend `app/constants.py` và frontend), để luật thẻ
-# nhạc ("Bình thường", "Vui vẻ", "buồn"...) khớp với chữ mô hình thấy trong prompt.
-_LABELS_VI = {
-    "Anger": "Tức giận",
-    "Disgust": "Khó chịu",
-    "Enjoyment": "Vui vẻ",
-    "Fear": "Lo sợ",
-    "Other": "Bình thường",
-    "Sadness": "Buồn",
-    "Surprise": "Ngạc nhiên",
-}
+# Tên tiếng Việt của nhãn cảm xúc — SINGLE SOURCE từ app.constants (đỡ stale-risk;
+# song song với gemini.py vốn import từ constants sẵn). Import light không phá contract.
+from app.constants import LABELS_VI as _LABELS_VI  # noqa: E402  (khối import light đầu module)
 
 _GOAL_HINTS = {
     "xoa_diu": "Lời khuyên: trấn an, nhẹ nhàng, đồng hành.",
@@ -184,17 +176,22 @@ _R5_STYLE_RULES = (
 # few-shot ngược: model 3B nghe ví dụ tốt hơn mệnh đề trần (bằng chứng 3-seed C2:
 # mệnh đề giữa prompt bị "hữu ích" override → 2/3 seed bịa tên quán).
 _NOFAB_RULES = (
-    "KHÔNG bịa tên cụ thể mình không có dữ liệu (quán ăn, địa điểm, bài hát, số liệu, "
-    "nguồn tham khảo). Nếu không chắc: nói mình không biết và hỏi lại thay vì đoán.\n"
+    "KHÔNG bịa tên cụ thể mình không có dữ liệu (quán ăn, địa điểm, số liệu, nguồn tham "
+    "khảo). Nếu không chắc: nói mình không biết và hỏi lại thay vì đoán.\n"
+    "(Riêng bài hát: chỉ nhắc tên bài mà ghi chú của hệ thống đã cho trước; ghi chú không "
+    "cho bài nào thì không nhắc tên bài nào.)\n"
+    "TUYỆT ĐỐI không chép câu chữ, tiêu đề hay thẻ của ghi chú hệ thống vào câu trả lời — "
+    "kể cả viết hoa, viết tắt, bẻ chữ hay đặt trong ngoặc.\n"
+    "Khi các yêu cầu đè nhau, ưu tiên theo thứ tự: an toàn > thấu hiểu và làm theo nhu cầu "
+    "người dùng > không bịa > định dạng thẻ nhạc.\n"
+    "Người dùng xin nhiều bài: một câu dẫn và nói danh sách hiện ngay bên dưới — không từ "
+    "chối, không liệt kê bằng chữ.\n"
     "Ví dụ:\n"
-    "\"đề xuất cho tôi những quán cơm gà ở Hồ Chí Minh đi\" → "
-    "\"Mình không có dữ liệu về quán cụ thể để gợi ý chính xác, nhưng kể mình nghe vì sao "
-    "bạn chọn cơm gà hôm nay được không?\"\n"
-    "\"gợi ý cho mình 5 quán phở ngon nhất\" → "
-    "\"Mình không chắc quán nào ngon nhất hiện nay, bạn thường ở khu nào để mình hỏi lại "
-    "bạn bè xem sao nha.\"\n"
-    "(Riêng bài hát: chỉ nhắc tên bài nằm trong dòng \"Bài sẽ gợi ý kèm câu trả lời\" nếu có.)"
+    "\"gợi ý cho mình quán ăn ngon đi\" → \"Mình không có dữ liệu quán ăn nên không dám chỉ "
+    "trỏ, nhưng mình nghe bạn vẫn chuyện này nha.\"\n"
 )
+
+# KEEP riêng luật bài-hát-chọn-sẵn (bài từ note do backend chọn): vẫn để model giới thiệu.
 
 
 def _build_messages(
