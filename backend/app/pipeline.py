@@ -362,6 +362,14 @@ async def handle_chat(
                 reply, llm_backend, llm_warnings, music_flag = await generate_with_fallback(
                     text, llm_emotion, arousal, history, goal
                 )
+                if music_flag is True:
+                    accepted, guard_code = check_music_tag(text, label, emotion_source)
+                    if accepted:
+                        music_decision = "llm"
+                        music_result = await run_music()
+                    else:
+                        music_decision = "llm_guard"
+                        guard_reason = GUARD_REASONS[guard_code or "neutral"]
         elif goal:
             # Có chip: chọn bài TRƯỚC (chỉ đọc catalog, rất nhanh) rồi ghi các bài vào ghi chú bối
             # cảnh, để câu trả lời của LLM giới thiệu đúng những bài sẽ hiện kèm.

@@ -65,17 +65,9 @@ _CONTEXT_NOTE = (
     "nhắc tới và không tự viết tóm tắt trong câu trả lời."
 )
 
-# Tên tiếng Việt của nhãn cảm xúc (khớp backend `app/constants.py` và frontend), để luật thẻ
-# nhạc ("Bình thường", "Vui vẻ", "buồn"...) khớp với chữ mô hình thấy trong prompt.
-_LABELS_VI = {
-    "Anger": "Tức giận",
-    "Disgust": "Khó chịu",
-    "Enjoyment": "Vui vẻ",
-    "Fear": "Lo sợ",
-    "Other": "Bình thường",
-    "Sadness": "Buồn",
-    "Surprise": "Ngạc nhiên",
-}
+# Tên tiếng Việt của nhãn cảm xúc — SINGLE SOURCE từ app.constants (đỡ stale-risk;
+# song song với gemini.py vốn import từ constants sẵn). Import light không phá contract.
+from app.constants import LABELS_VI as _LABELS_VI  # noqa: E402  (khối import light đầu module)
 
 _GOAL_HINTS = {
     "xoa_diu": "Lời khuyên: trấn an, nhẹ nhàng, đồng hành.",
