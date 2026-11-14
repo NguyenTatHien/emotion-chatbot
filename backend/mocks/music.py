@@ -1,6 +1,7 @@
 """Mock gợi ý nhạc đọc từ data/songs.csv."""
 
 import csv
+from collections.abc import Iterable
 from pathlib import Path
 
 from app.config import get_settings
@@ -29,7 +30,13 @@ _REASON_VI = {
 }
 
 
-def recommend(label: str, arousal: str | None, goal: str | None, k: int = 5) -> list[dict]:
+def recommend(
+    label: str,
+    arousal: str | None,
+    goal: str | None,
+    k: int = 5,
+    exclude: Iterable[str] | None = None,
+) -> list[dict]:
     simulate_latency()
     songs = _load_songs()
 
@@ -45,8 +52,16 @@ def recommend(label: str, arousal: str | None, goal: str | None, k: int = 5) -> 
 
     ranked = sorted(songs, key=lambda s: -score(s))  # sort ổn định nên kết quả tất định
     limit = max(1, min(k, 5))
+    skipped = set(exclude or ())
+    fresh = [s for s in ranked if s["youtube_url"] not in skipped]
+    chosen = fresh[:limit]
+    minimum = min(3, limit)
+    if len(chosen) < minimum:
+        # Catalog gần cạn vì exclude: bù lại bằng bài đã gợi ý thay vì trả quá ít bài.
+        repeats = [s for s in ranked if s["youtube_url"] in skipped]
+        chosen += repeats[: minimum - len(chosen)]
     result = []
-    for song in ranked[:limit]:
+    for song in chosen:
         reasons = []
         if label in song["emotion_tags"].split("|"):
             if label in _REASON_VI:

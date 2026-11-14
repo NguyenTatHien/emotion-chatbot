@@ -8,9 +8,9 @@ Mỗi thành viên chỉ sửa **đúng một file** trong `backend/modules/` (�
 | `modules/speech.py` | `transcribe(wav_path)`, `extract_prosody(wav_path)` | Người 3 |
 | `modules/safety.py` | `check_safety(text)` | Người 3 |
 | `modules/llm.py` | `generate_reply(text, emotion, arousal, history, goal=None)` | Người 3 |
-| `modules/music.py` | `recommend(label, arousal, goal, k=5)` | Người 5 |
+| `modules/music.py` | `recommend(label, arousal, goal, k=5, exclude=None)` | Người 5 |
 
-Chữ ký, kiểu đầu vào/đầu ra nằm trong docstring của từng file. **Không đổi chữ ký**; nếu thấy cần đổi, báo Hiển để cập nhật cả mock và pipeline.
+Chữ ký, kiểu đầu vào/đầu ra nằm trong docstring của từng file. **Không đổi chữ ký** (riêng `music.recommend` có thêm `exclude`: danh sách `youtube_url` cần tránh, `None` = rỗng, pipeline truyền các bài đã gợi ý trong phiên); nếu thấy cần đổi, báo Hiển để cập nhật cả mock và pipeline.
 
 ## Cắm module thật trong 3 bước
 
@@ -37,6 +37,8 @@ Chữ ký, kiểu đầu vào/đầu ra nằm trong docstring của từng file.
    ```bash
    pytest tests/contract -k emotion     # hoặc speech | safety | llm | music
    ```
+
+   **Music:** đã có bản `local` theo nội dung (năng lượng đích theo mục tiêu và cảm xúc, mỗi nghệ sĩ tối đa 1 bài, không lặp bài nhờ `exclude`, lý do tiếng Việt; do Hiển viết thay, cần Người 5 review). Bật bằng `MUSIC_MODE=local`. Đo độ phủ, độ đa dạng nghệ sĩ và số bài lặp qua 3 lượt, so với mock, bằng `python -m app.tools.eval_music`.
 
    Module được coi là xong khi toàn bộ test của nó pass (không còn skip). Sau đó đặt `<MODULE>_MODE=local` trong `.env` để cả backend dùng bản thật.
 

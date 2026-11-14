@@ -180,8 +180,13 @@ def test_music_error_returns_empty_songs(client):
     assert any("music" in w for w in body["meta"]["warnings"])
 
 
-def test_local_stub_module_degrades_not_500(client, set_env):
+def test_local_stub_module_degrades_not_500(client, set_env, monkeypatch):
     set_env(MUSIC_MODE="local")
+
+    def stub(*a, **k):
+        raise NotImplementedError("module chưa có người làm")
+
+    monkeypatch.setattr("modules.music.recommend", stub)
     r = post(client, session_id="s1", message="mình buồn", goal="xoa_diu")
     assert r.status_code == 200
     body = r.json()
