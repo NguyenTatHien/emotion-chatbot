@@ -84,7 +84,7 @@ def test_arousal_reaches_response_and_modules(client, audio_samples, spy_speech)
 
     registry.override("llm", llm)
     registry.override("music", music)
-    body = post_audio(client, audio_samples["webm"]).json()
+    body = post_audio(client, audio_samples["webm"], goal="xoa_diu").json()  # chip: luôn gọi music
     assert body["emotion"]["arousal"] == "high"
     assert seen == {"llm": "high", "music": "high"}
 

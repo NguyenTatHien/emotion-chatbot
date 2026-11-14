@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.music_guard import accept_music_tag, asks_for_music
+from app.music_guard import accept_music_tag, asks_for_music, check_music_tag
 from mocks import music
 
 
@@ -34,8 +34,34 @@ def test_neutral_turn_without_request_is_blocked():
 
 
 @pytest.mark.parametrize("label", ["Sadness", "Fear", "Anger", "Disgust"])
-def test_negative_turn_is_accepted(label):
-    assert accept_music_tag("mình mệt mỏi quá", label, "module")
+def test_second_negative_turn_is_accepted(label):
+    assert accept_music_tag("mình mệt mỏi quá", label, "module", prev_label="Sadness")
+
+
+@pytest.mark.parametrize("prev", [None, "Other", "Enjoyment"])
+def test_first_negative_turn_listens_first(prev):
+    assert check_music_tag("mình buồn quá", "Sadness", "module", prev_label=prev) == (
+        False,
+        "first",
+    )
+
+
+def test_cooldown_after_music_turn():
+    result = check_music_tag(
+        "mai thi rồi mình sợ lắm", "Fear", "module", prev_label="Anger", prev_had_music=True
+    )
+    assert result == (False, "cooldown")
+    # Xin nhạc thì bỏ qua thời gian nghỉ.
+    assert check_music_tag(
+        "có bài nào khác không", "Fear", "module", prev_label="Anger", prev_had_music=True
+    ) == (True, None)
+
+
+def test_neutral_reason_code():
+    assert check_music_tag("Mình tên Hiển", "Other", "module", prev_label="Sadness") == (
+        False,
+        "neutral",
+    )
 
 
 def test_request_is_accepted_whatever_the_emotion():

@@ -6,6 +6,7 @@ import respx
 
 from app import registry
 from app.constants import LABELS
+from app.music_guard import GUARD_REASONS
 
 KEY = "AIza-SECRET-KEY-9876"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent"
@@ -23,6 +24,12 @@ def llm_says(text):
         return text
 
     registry.override("llm", llm)
+
+
+def prime_negative(client, message="mệt quá"):
+    """Một lượt tiêu cực trước đó, LLM nói KHONG (luật: chỉ gợi ý khi tiêu cực ≥ 2 lượt)."""
+    llm_says("[NHAC:KHONG]\nMình nghe đây.")
+    post(client, message=message)
 
 
 @pytest.fixture
@@ -56,6 +63,7 @@ def test_chip_always_has_songs(client, reply):
 
 
 def test_llm_decides_yes(client, music_spy):
+    prime_negative(client)
     llm_says("[NHAC:CO]\nMình hiểu bạn đang mệt...")
     body = post(client, message="mệt quá").json()
     assert body["reply"] == "Mình hiểu bạn đang mệt..."
@@ -111,6 +119,7 @@ def test_music_failure_after_yes_keeps_intent(client):
         raise RuntimeError("hỏng")
 
     registry.override("music", broken)
+    prime_negative(client)
     llm_says("[NHAC:CO]\nBạn nghe thử nhé.")
     r = post(client, message="mệt quá")
     assert r.status_code == 200
@@ -122,6 +131,7 @@ def test_music_failure_after_yes_keeps_intent(client):
 
 def test_invalid_music_schema_after_yes_gives_empty_songs(client):
     registry.override("music", lambda *a, **k: [{"title": "thiếu trường"}])
+    prime_negative(client)
     llm_says("[NHAC:CO]\nBạn nghe thử nhé.")
     body = post(client, message="mệt quá").json()
     assert body["songs"] == [] and body["meta"]["music_decision"] == "llm"
@@ -129,14 +139,15 @@ def test_invalid_music_schema_after_yes_gives_empty_songs(client):
 
 
 def test_session_records_music_decision(client, music_spy):
+    prime_negative(client)
     llm_says("[NHAC:CO]\nBạn nghe thử nhé.")
     post(client, message="mệt quá")
     llm_says("[NHAC:KHONG]\nCảm ơn bạn.")
     post(client, message="cảm ơn")
     turns = client.get("/api/session/s1").json()["turns"]
-    assert [t["music_decision"] for t in turns] == ["llm", "llm_no"]
-    assert turns[0]["reply"] == "Bạn nghe thử nhé."
-    assert turns[0]["rating"] is None
+    assert [t["music_decision"] for t in turns] == ["llm_no", "llm", "llm_no"]
+    assert turns[1]["reply"] == "Bạn nghe thử nhé."
+    assert turns[1]["rating"] is None
 
 
 def test_tag_never_reaches_stored_reply_or_next_history(client):
@@ -185,6 +196,7 @@ def gemini_text(text):
 
 
 def test_tag_only_reply_falls_through_to_gemini(client, gemini_fallback, music_spy):
+    prime_negative(client)
     llm_says("[NHAC:KHONG]")
     gemini_fallback.respond(200, json=gemini_text("[NHAC:CO]\nMình ở đây với bạn."))
     body = post(client, message="mệt quá").json()
@@ -288,6 +300,7 @@ def test_guard_blocks_co_on_neutral_turn_without_request(client, music_spy):
 
 def test_guard_accepts_co_on_negative_turn(client, music_spy):
     emotion_is("Sadness")
+    prime_negative(client, "mình buồn lắm")
     llm_says("[NHAC:CO]\nMình ở đây với bạn.")
     body = post(client, message="mình mệt mỏi quá").json()
     assert body["meta"]["music_decision"] == "llm"
@@ -323,3 +336,31 @@ def test_pipeline_passes_session_songs_as_exclude(client):
     for _ in range(3):
         post(client, message="mình buồn lắm", goal="xoa_diu")
     assert received == [[], ["https://y/1"], ["https://y/1", "https://y/2"]]
+
+
+def test_screenshot_scenario_listen_first_then_cooldown(client, music_spy):
+    """Buồn (lần đầu) → giận → lo: lượt 1 lắng nghe, lượt 2 có nhạc, lượt 3 nghỉ."""
+    llm_says("[NHAC:CO]\nMình ở đây với bạn.")  # Qwen lượt nào cũng muốn gợi ý
+    results = []
+    for label, text in [
+        ("Sadness", "Mình buồn quá, chẳng muốn làm gì cả"),
+        ("Anger", "Sao nó dám đối xử với mình như vậy, tức điên lên được"),
+        ("Fear", "Mai thi rồi mình sợ rớt lắm"),
+    ]:
+        emotion_is(label)
+        body = post(client, message=text).json()
+        results.append((body["meta"]["music_decision"], bool(body["songs"]),
+                        body["meta"]["analysis"]["music_reason"]))
+    assert results[0] == ("llm_guard", False, GUARD_REASONS["first"])
+    assert results[1][:2] == ("llm", True)
+    assert results[2] == ("llm_guard", False, GUARD_REASONS["cooldown"])
+
+
+def test_request_overrides_cooldown(client, music_spy):
+    emotion_is("Sadness")
+    prime_negative(client, "mình buồn lắm")
+    llm_says("[NHAC:CO]\nNghe nhé.")
+    post(client, message="vẫn buồn quá")
+    body = post(client, message="có bài nào khác nghe không").json()
+    assert body["meta"]["music_decision"] == "llm"
+    assert body["songs"]
