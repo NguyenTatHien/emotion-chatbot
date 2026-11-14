@@ -593,6 +593,7 @@
             "enum": [
               "chip",
               "llm",
+              "llm_guard",
               "llm_no",
               "no_tag",
               "safety"
@@ -781,6 +782,7 @@
                 "enum": [
                   "chip",
                   "llm",
+                  "llm_guard",
                   "llm_no",
                   "no_tag",
                   "safety"

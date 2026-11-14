@@ -18,6 +18,17 @@ def _load_songs() -> list[dict]:
     return list(csv.DictReader(lines))
 
 
+# Lý do theo cảm xúc bằng tiếng Việt; "Other" không có câu riêng (dùng câu mặc định).
+_REASON_VI = {
+    "Sadness": "hợp với tâm trạng buồn",
+    "Fear": "giúp dịu bớt lo lắng",
+    "Anger": "giúp xả bớt bực bội",
+    "Disgust": "giúp đổi không khí",
+    "Enjoyment": "hợp với tâm trạng vui",
+    "Surprise": "hợp với cảm giác bất ngờ",
+}
+
+
 def recommend(label: str, arousal: str | None, goal: str | None, k: int = 5) -> list[dict]:
     simulate_latency()
     songs = _load_songs()
@@ -38,7 +49,8 @@ def recommend(label: str, arousal: str | None, goal: str | None, k: int = 5) -> 
     for song in ranked[:limit]:
         reasons = []
         if label in song["emotion_tags"].split("|"):
-            reasons.append(f"hợp với cảm xúc {label}")
+            if label in _REASON_VI:
+                reasons.append(_REASON_VI[label])
         if goal and goal in song["goal_tags"].split("|"):
             reasons.append("đúng mục tiêu nghe nhạc bạn chọn")
         result.append(

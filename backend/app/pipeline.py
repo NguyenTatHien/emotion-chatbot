@@ -21,6 +21,7 @@ from app import fallbacks, gemini, memory, registry
 from app.config import get_settings
 from app.constants import AROUSAL_LEVELS, LABELS, MODULE_NAMES
 from app.fusion import apply_fusion
+from app.music_guard import accept_music_tag
 from app.music_tag import split_music_tag
 from app.schemas import (
     Analysis,
@@ -42,6 +43,7 @@ logger = logging.getLogger("emotion_chatbot.pipeline")
 MUSIC_REASONS: dict[str, str] = {
     "chip": "Bạn đã chọn mục tiêu nghe nhạc",
     "llm": "Bot thấy lúc này nghe nhạc có thể giúp bạn",
+    "llm_guard": "Bot định gợi ý nhạc nhưng lượt này chưa phù hợp",
     "llm_no": "Chưa cần gợi ý nhạc ở lượt này",
     "no_tag": "Không gợi ý nhạc (mô hình không đưa ra quyết định)",
     "safety": "Không gợi ý nhạc ở lượt cần hỗ trợ an toàn",
@@ -306,9 +308,12 @@ async def handle_chat(
             reply, llm_backend, llm_warnings, music_flag = await generate_with_fallback(
                 text, llm_emotion, arousal, history, goal
             )
-            if music_flag is True:
+            if music_flag is True and accept_music_tag(text, label, emotion_source):
                 music_decision = "llm"
                 music_result = await run_music()
+            elif music_flag is True:
+                # Chốt chặn: LLM nói CO nhưng lượt này không xin nhạc và cảm xúc không tiêu cực.
+                music_decision = "llm_guard"
             else:
                 music_decision = "llm_no" if music_flag is False else "no_tag"
         warnings.extend(llm_warnings)

@@ -241,7 +241,7 @@ export interface components {
              * @default no_tag
              * @enum {string}
              */
-            music_decision: "chip" | "llm" | "llm_no" | "no_tag" | "safety";
+            music_decision: "chip" | "llm" | "llm_guard" | "llm_no" | "no_tag" | "safety";
             /**
              * Fusion Applied
              * @default false
@@ -301,7 +301,7 @@ export interface components {
             /** Llm Backend */
             llm_backend?: string | null;
             /** Music Decision */
-            music_decision?: ("chip" | "llm" | "llm_no" | "no_tag" | "safety") | null;
+            music_decision?: ("chip" | "llm" | "llm_guard" | "llm_no" | "no_tag" | "safety") | null;
             /** Rating */
             rating?: ("up" | "down") | null;
             /** Created At */

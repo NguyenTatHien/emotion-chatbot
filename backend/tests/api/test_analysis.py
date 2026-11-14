@@ -223,7 +223,8 @@ def test_emotion_fallback_source(client, spy):
     ("fields", "reply", "decision"),
     [
         ({"goal": "xoa_diu"}, "[NHAC:KHONG]\nỔn.", "chip"),
-        ({}, "[NHAC:CO]\nỔn.", "llm"),
+        ({"message": "có bài nào nghe cho vui không"}, "[NHAC:CO]\nỔn.", "llm"),
+        ({}, "[NHAC:CO]\nỔn.", "llm_guard"),
         ({}, "[NHAC:KHONG]\nỔn.", "llm_no"),
         ({}, "Ổn.", "no_tag"),
         ({"message": "mình muốn chết"}, "Ổn.", "safety"),
@@ -240,6 +241,7 @@ def test_music_reasons_are_the_sentences_of_the_design():
     assert MUSIC_REASONS == {
         "chip": "Bạn đã chọn mục tiêu nghe nhạc",
         "llm": "Bot thấy lúc này nghe nhạc có thể giúp bạn",
+        "llm_guard": "Bot định gợi ý nhạc nhưng lượt này chưa phù hợp",
         "llm_no": "Chưa cần gợi ý nhạc ở lượt này",
         "no_tag": "Không gợi ý nhạc (mô hình không đưa ra quyết định)",
         "safety": "Không gợi ý nhạc ở lượt cần hỗ trợ an toàn",

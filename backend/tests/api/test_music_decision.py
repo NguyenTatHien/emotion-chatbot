@@ -5,6 +5,7 @@ import pytest
 import respx
 
 from app import registry
+from app.constants import LABELS
 
 KEY = "AIza-SECRET-KEY-9876"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent"
@@ -261,3 +262,41 @@ def test_mock_reply_without_chip_does_not_promise_songs(client):
     assert "chọn vài bài" not in body["reply"]
     with_chip = post(client, message="chào bạn", goal="xoa_diu").json()
     assert "chọn vài bài" in with_chip["reply"]
+
+
+# --- Chốt chặn thẻ CO ---
+
+
+def emotion_is(label):
+    probs = dict.fromkeys(LABELS, 0.0)
+    probs[label] = 0.9
+
+    def emotion(text):
+        return {"label": label, "probs": probs}
+
+    registry.override("emotion", emotion)
+
+
+def test_guard_blocks_co_on_neutral_turn_without_request(client, music_spy):
+    emotion_is("Other")
+    llm_says("[NHAC:CO]\nChúc bạn thi tốt nhé.")
+    body = post(client, message="Mình tên Hiển, tuần sau thi môn NLP").json()
+    assert body["songs"] == []
+    assert body["meta"]["music_decision"] == "llm_guard"
+    assert music_spy == []
+
+
+def test_guard_accepts_co_on_negative_turn(client, music_spy):
+    emotion_is("Sadness")
+    llm_says("[NHAC:CO]\nMình ở đây với bạn.")
+    body = post(client, message="mình mệt mỏi quá").json()
+    assert body["meta"]["music_decision"] == "llm"
+    assert len(body["songs"]) == 1
+
+
+def test_guard_accepts_co_when_user_asks_for_music(client, music_spy):
+    emotion_is("Enjoyment")
+    llm_says("[NHAC:CO]\nNghe thử mấy bài này nha.")
+    body = post(client, message="có bài nào nghe cho vui không").json()
+    assert body["meta"]["music_decision"] == "llm"
+    assert len(body["songs"]) == 1
