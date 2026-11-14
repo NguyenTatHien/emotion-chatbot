@@ -123,6 +123,35 @@ def history_from_snapshot(snap: MemorySnapshot, tone_text: str | None = None) ->
     return history
 
 
+MUSIC_NOTE_PREFIX = "Bài sẽ gợi ý kèm câu trả lời:"
+
+
+def with_music_note(history: list[dict], songs: list) -> list[dict]:
+    """Bản sao `history` có thêm dòng các bài sẽ hiện kèm câu trả lời (vào cuối ghi chú bối cảnh).
+
+    Dùng khi bài đã được chọn TRƯỚC khi gọi LLM (người dùng bấm chip), để câu trả lời giới thiệu
+    đúng những bài đang hiện. `songs` là danh sách có `.title`/`.artist` (Song) hoặc dict.
+    """
+    if not songs:
+        return history
+
+    def _get(song, key):
+        return getattr(song, key, None) or (song.get(key) if isinstance(song, dict) else "")
+
+    line = f"{MUSIC_NOTE_PREFIX} " + "; ".join(
+        f"{_get(s, 'title')} – {_get(s, 'artist')}" for s in songs
+    )
+    out = [dict(m) for m in history]
+    if out and str(out[0].get("content", "")).startswith(CONTEXT_MARKER):
+        out[0]["content"] = f"{out[0]['content']}\n{line}"
+    else:
+        out[:0] = [
+            {"role": "user", "content": f"{CONTEXT_HEADER}\n{line}"},
+            {"role": "assistant", "content": CONTEXT_ACK},
+        ]
+    return out
+
+
 async def build_context(
     session_id: str, tone_text: str | None = None
 ) -> tuple[list[dict], MemorySnapshot]:

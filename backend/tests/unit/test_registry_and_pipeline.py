@@ -109,23 +109,46 @@ async def test_history_turns_setting(set_env):
     assert seen["n"] == 2 + 2 * (2 + 2 * 1)
 
 
-async def test_llm_and_music_run_in_parallel():
-    def slow_llm(*a, **k):
-        time.sleep(0.3)
-        return "xin chào?"
+async def test_chip_runs_music_first_and_llm_sees_the_songs():
+    """Có chip: chọn bài trước, ghi vào ghi chú bối cảnh để câu trả lời giới thiệu đúng bài."""
+    order, seen = [], {}
 
-    def slow_music(label, arousal, goal, k=5, exclude=None):
-        time.sleep(0.3)
-        return [{"title": "t", "artist": "a", "youtube_url": "https://x", "reason": "r"}]
+    def llm(text, emotion, arousal, history, goal=None):
+        order.append("llm")
+        seen["note"] = history[0]["content"]
+        return "Mình mở Kiss the Rain trước nhé."
 
-    registry.override("llm", slow_llm)
-    registry.override("music", slow_music)
-    start = time.perf_counter()
-    resp = await handle_chat("s1", message="mình buồn", goal="xoa_diu")
-    elapsed = time.perf_counter() - start
-    assert elapsed < 0.55
-    assert resp.meta.latency_ms < 550
+    def music(label, arousal, goal, k=5, exclude=None):
+        order.append("music")
+        song = {"title": "Kiss the Rain", "artist": "Yiruma", "youtube_url": "https://x"}
+        return [{**song, "reason": "r"}]
+
+    registry.override("llm", llm)
+    registry.override("music", music)
+    resp = await handle_chat("s1", message="giờ mình cần học bài", goal="tap_trung")
+    assert order == ["music", "llm"]
+    assert "Bài sẽ gợi ý kèm câu trả lời: Kiss the Rain – Yiruma" in seen["note"]
     assert len(resp.songs) == 1
+    assert resp.meta.analysis.music_lead == "Vài bài giúp bạn tập trung"
+
+
+async def test_chip_music_failure_still_replies_without_note():
+    seen = {}
+
+    def llm(text, emotion, arousal, history, goal=None):
+        seen["note"] = history[0]["content"]
+        return "ok?"
+
+    def broken(*a, **k):
+        raise RuntimeError("hỏng")
+
+    registry.override("llm", llm)
+    registry.override("music", broken)
+    resp = await handle_chat("s1", message="mình buồn", goal="xoa_diu")
+    assert resp.reply == "ok?"
+    assert resp.songs == []
+    assert "Bài sẽ gợi ý" not in seen["note"]
+    assert resp.meta.analysis.music_lead is None
 
 
 async def test_music_runs_after_llm_without_chip():

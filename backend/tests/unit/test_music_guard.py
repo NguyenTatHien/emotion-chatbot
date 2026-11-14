@@ -77,3 +77,33 @@ def test_mock_music_reasons_are_vietnamese():
         for song in music.recommend(label, None, None, 5):
             assert label not in song["reason"]
             assert song["reason"].startswith("Bài ")
+
+
+def test_music_lead_by_goal_then_emotion():
+    from app.pipeline import DEFAULT_MUSIC_LEAD, music_lead
+
+    assert music_lead(False, "tap_trung", "Sadness") is None
+    assert music_lead(True, "tap_trung", "Sadness") == "Vài bài giúp bạn tập trung"
+    assert music_lead(True, None, "Anger") == "Vài bài nhịp mạnh để xả bớt"
+    assert music_lead(True, None, "Other") == DEFAULT_MUSIC_LEAD
+
+
+def test_with_music_note_appends_to_context_pair():
+    from app import memory
+
+    history = [
+        {"role": "user", "content": memory.CONTEXT_HEADER + "\nGiọng điệu nên dùng: dịu."},
+        {"role": "assistant", "content": memory.CONTEXT_ACK},
+    ]
+    out = memory.with_music_note(history, [{"title": "A", "artist": "X"}])
+    assert out[0]["content"].endswith("Bài sẽ gợi ý kèm câu trả lời: A – X")
+    assert history[0]["content"].endswith("dịu.")  # không sửa bản gốc
+    assert memory.with_music_note(history, []) is history
+
+
+def test_prompts_explain_music_note():
+    from app import gemini
+    from modules import llm
+
+    assert "Bài sẽ gợi ý kèm câu trả lời" in gemini.SYSTEM_PROMPT
+    assert "Bài sẽ gợi ý kèm câu trả lời" in llm._MUSIC_TAG_RULES

@@ -43,7 +43,11 @@ export function BotMessage({ message, onRate }: BotMessageProps) {
         )}
         {/* Tin vừa nhận: chữ gõ xong mới hiện bài hát và nút đánh giá (trượt vào lần lượt). */}
         {!message.safety && done ? (
-          <SongList songs={message.songs} animate={fresh} />
+          <SongList
+            songs={message.songs}
+            animate={fresh}
+            lead={message.analysis?.music_lead}
+          />
         ) : null}
         {!message.safety && done && message.turnId && onRate ? (
           <FeedbackButtons
