@@ -29,7 +29,7 @@ def llm_says(text):
 def music_spy():
     calls = []
 
-    def music(label, arousal, goal, k=5):
+    def music(label, arousal, goal, k=5, exclude=None):
         calls.append((label, goal))
         return [SONG]
 
@@ -300,3 +300,26 @@ def test_guard_accepts_co_when_user_asks_for_music(client, music_spy):
     body = post(client, message="có bài nào nghe cho vui không").json()
     assert body["meta"]["music_decision"] == "llm"
     assert len(body["songs"]) == 1
+
+
+def test_three_chip_turns_do_not_repeat_songs(client):
+    seen: list[str] = []
+    for _ in range(3):
+        body = post(client, message="mình buồn lắm", goal="xoa_diu").json()
+        urls = [s["youtube_url"] for s in body["songs"]]
+        assert 3 <= len(urls) <= 5
+        assert not set(seen) & set(urls)
+        seen.extend(urls)
+
+
+def test_pipeline_passes_session_songs_as_exclude(client):
+    received = []
+
+    def music(label, arousal, goal, k=5, exclude=None):
+        received.append(list(exclude))
+        return [{**SONG, "youtube_url": f"https://y/{len(received)}"}]
+
+    registry.override("music", music)
+    for _ in range(3):
+        post(client, message="mình buồn lắm", goal="xoa_diu")
+    assert received == [[], ["https://y/1"], ["https://y/1", "https://y/2"]]

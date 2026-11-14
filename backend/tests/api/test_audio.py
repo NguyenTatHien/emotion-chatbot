@@ -78,7 +78,7 @@ def test_arousal_reaches_response_and_modules(client, audio_samples, spy_speech)
         seen["llm"] = arousal
         return "[NHAC:CO]\nmình nghe bạn?"
 
-    def music(label, arousal, goal=None, k=5):
+    def music(label, arousal, goal=None, k=5, exclude=None):
         seen["music"] = arousal
         return []
 

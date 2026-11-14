@@ -114,7 +114,7 @@ async def test_llm_and_music_run_in_parallel():
         time.sleep(0.3)
         return "xin chào?"
 
-    def slow_music(label, arousal, goal, k=5):
+    def slow_music(label, arousal, goal, k=5, exclude=None):
         time.sleep(0.3)
         return [{"title": "t", "artist": "a", "youtube_url": "https://x", "reason": "r"}]
 
@@ -136,7 +136,7 @@ async def test_music_runs_after_llm_without_chip():
         time.sleep(0.1)
         return "[NHAC:CO]\nmình nghe bạn?"
 
-    def music(label, arousal, goal, k=5):
+    def music(label, arousal, goal, k=5, exclude=None):
         order.append("music")
         return []
 

@@ -286,6 +286,9 @@ async def handle_chat(
         # LLM chỉ nhận contract {label, probs} (đã kết hợp nếu có fusion).
         llm_emotion = {"label": label, "probs": emotion_dict["probs"]}
 
+        # Không lặp bài: loại các bài đã gợi ý trong phiên (lấy từ snapshot của build_context).
+        already_suggested = [song.youtube_url for turn in snap.turns for song in turn.songs]
+
         async def run_music() -> tuple[object | None, str | None]:
             return await try_call(
                 "music",
@@ -294,6 +297,7 @@ async def handle_chat(
                 arousal,
                 goal,
                 5,
+                exclude=already_suggested,
                 timeout=settings.module_timeout("music"),
             )
 

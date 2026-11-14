@@ -87,7 +87,7 @@ def test_fused_label_reaches_music_llm_response_and_session(client, audio_sample
         seen["llm"] = emotion
         return "mình nghe bạn."
 
-    def music(label, arousal, goal=None, k=5):
+    def music(label, arousal, goal=None, k=5, exclude=None):
         seen["music"] = label
         return []
 
