@@ -153,7 +153,7 @@ def test_third_turn_analysis(client, spy):
     registry.override("music", lambda *a, **k: [SONG])
     set_emotions("Sadness", "Fear", "Sadness")
     spy.reply = "[NHAC:CO]\nMình nghe đây."
-    first = chat(client, "lượt một")
+    first = chat(client, "lượt một", goal="xoa_diu")  # chip: luôn có nhạc
     assert first["songs"]
     spy.reply = "[NHAC:KHONG]\nỪ."
     chat(client, "lượt hai")

@@ -21,7 +21,7 @@ from app import fallbacks, gemini, memory, registry
 from app.config import get_settings
 from app.constants import AROUSAL_LEVELS, LABELS, MODULE_NAMES
 from app.fusion import apply_fusion
-from app.music_guard import accept_music_tag
+from app.music_guard import GUARD_REASONS, check_music_tag
 from app.music_tag import split_music_tag
 from app.schemas import (
     Analysis,
@@ -55,6 +55,7 @@ def build_analysis(
     tone: dict | None,
     music_decision: MusicDecision,
     emotion_source: str | None,
+    music_reason: str | None = None,
 ) -> Analysis:
     """Phân tích của lượt, lấy từ cùng ảnh chụp bộ nhớ đã dùng để dựng ghi chú bối cảnh."""
     return Analysis(
@@ -64,7 +65,7 @@ def build_analysis(
         ],
         last_music_turn=memory.last_music_turn(snap),
         tone=Tone(**tone) if tone else None,
-        music_reason=MUSIC_REASONS[music_decision],
+        music_reason=music_reason or MUSIC_REASONS[music_decision],
         emotion_source=emotion_source,  # type: ignore[arg-type]
     )
 
@@ -247,6 +248,7 @@ async def handle_chat(
 
     history: list[dict] = []
     snap: MemorySnapshot | None = None
+    guard_reason: str | None = None
     tone: dict | None = None
     emotion_source: str | None = None
     emotion_dict: dict | None = None
@@ -312,12 +314,27 @@ async def handle_chat(
             reply, llm_backend, llm_warnings, music_flag = await generate_with_fallback(
                 text, llm_emotion, arousal, history, goal
             )
-            if music_flag is True and accept_music_tag(text, label, emotion_source):
-                music_decision = "llm"
-                music_result = await run_music()
-            elif music_flag is True:
-                # Chốt chặn: LLM nói CO nhưng lượt này không xin nhạc và cảm xúc không tiêu cực.
-                music_decision = "llm_guard"
+            if music_flag is True:
+                # Chốt chặn: kiểm lại luật bằng số liệu đo được (xin nhạc, ≥ 2 lượt tiêu cực,
+                # nghỉ một lượt sau khi vừa gợi ý).
+                prev = snap.turns[-1] if snap.turns else None
+                prev_label = (
+                    prev.emotion.label if prev is not None and prev.emotion and not prev.safety
+                    else None
+                )
+                accepted, guard_code = check_music_tag(
+                    text,
+                    label,
+                    emotion_source,
+                    prev_label=prev_label,
+                    prev_had_music=bool(prev is not None and prev.songs),
+                )
+                if accepted:
+                    music_decision = "llm"
+                    music_result = await run_music()
+                else:
+                    music_decision = "llm_guard"
+                    guard_reason = GUARD_REASONS[guard_code or "neutral"]
             else:
                 music_decision = "llm_no" if music_flag is False else "no_tag"
         warnings.extend(llm_warnings)
@@ -357,7 +374,7 @@ async def handle_chat(
     await memory.maybe_schedule_summary(session_id)
 
     assert snap is not None  # cả hai nhánh (safety, thường) đều đã chụp bộ nhớ
-    analysis = build_analysis(snap, tone, music_decision, emotion_source)
+    analysis = build_analysis(snap, tone, music_decision, emotion_source, guard_reason)
 
     meta = Meta(
         llm_backend=llm_backend,

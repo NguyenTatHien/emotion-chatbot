@@ -192,7 +192,7 @@ def test_remote_without_url_fails_at_startup(set_env):
 def test_remote_reply_keeps_tag_until_backend_strips_it(client, remote, server):
     server.post("/emotion").respond(200, json={"label": "Fear", "probs": PROBS})
     server.post("/generate").respond(200, json={"reply": "[NHAC:CO]\nMình ở đây nghe bạn?"})
-    body = chat(client).json()
+    body = chat(client, "mình sợ lắm, có bài nào nghe cho đỡ không").json()
     assert body["reply"] == "Mình ở đây nghe bạn?"
     assert body["meta"]["music_decision"] == "llm"
     assert body["songs"]

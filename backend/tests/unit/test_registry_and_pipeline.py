@@ -142,7 +142,7 @@ async def test_music_runs_after_llm_without_chip():
 
     registry.override("llm", llm)
     registry.override("music", music)
-    resp = await handle_chat("s1", message="mình buồn")
+    resp = await handle_chat("s1", message="mình buồn, mở nhạc gì nghe đi")
     assert order == ["llm", "music"]
     assert resp.meta.music_decision == "llm"
 
