@@ -257,4 +257,5 @@ def test_analysis_response_shape(client, spy):
         "tone",
         "music_reason",
         "emotion_source",
+        "music_lead",
     }

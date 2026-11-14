@@ -45,6 +45,8 @@ class Analysis(BaseModel):
     tone: Tone | None = None
     music_reason: str
     emotion_source: Literal["module", "fallback"] | None = None
+    # Dòng dẫn phía trên danh sách bài (theo mục tiêu hoặc cảm xúc); None khi không có bài.
+    music_lead: str | None = None
 
 
 class Meta(BaseModel):

@@ -130,6 +130,8 @@ export interface components {
             music_reason: string;
             /** Emotion Source */
             emotion_source?: ("module" | "fallback") | null;
+            /** Music Lead */
+            music_lead?: string | null;
         };
         /** Body_chat_api_chat_post */
         Body_chat_api_chat_post: {

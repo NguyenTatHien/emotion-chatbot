@@ -287,6 +287,17 @@
               }
             ],
             "title": "Emotion Source"
+          },
+          "music_lead": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Music Lead"
           }
         },
         "type": "object",

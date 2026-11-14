@@ -50,12 +50,40 @@ MUSIC_REASONS: dict[str, str] = {
 }
 
 
+# Dòng dẫn phía trên danh sách bài: theo mục tiêu (chip) hoặc theo cảm xúc lượt này.
+DEFAULT_MUSIC_LEAD = "Vài bài có thể hợp với bạn lúc này"
+GOAL_MUSIC_LEADS: dict[str, str] = {
+    "xoa_diu": "Vài bài nhẹ nhàng để xoa dịu",
+    "nang_mood": "Vài bài vui để nâng tinh thần",
+    "tap_trung": "Vài bài giúp bạn tập trung",
+    "giai_toa": "Vài bài nhịp mạnh để xả bớt",
+}
+LABEL_MUSIC_LEADS: dict[str, str] = {
+    "Sadness": "Vài bài nhẹ nhàng cho lúc này",
+    "Fear": "Vài bài giúp dịu bớt lo lắng",
+    "Anger": "Vài bài nhịp mạnh để xả bớt",
+    "Disgust": "Vài bài để đổi không khí",
+    "Enjoyment": "Vài bài vui để giữ năng lượng",
+    "Surprise": "Vài bài cho cảm giác mới lạ",
+}
+
+
+def music_lead(has_songs: bool, goal: str | None, label: str | None) -> str | None:
+    """Dòng dẫn cho danh sách bài; None khi lượt này không có bài."""
+    if not has_songs:
+        return None
+    if goal in GOAL_MUSIC_LEADS:
+        return GOAL_MUSIC_LEADS[goal]
+    return LABEL_MUSIC_LEADS.get(label or "", DEFAULT_MUSIC_LEAD)
+
+
 def build_analysis(
     snap: MemorySnapshot,
     tone: dict | None,
     music_decision: MusicDecision,
     emotion_source: str | None,
     music_reason: str | None = None,
+    lead: str | None = None,
 ) -> Analysis:
     """Phân tích của lượt, lấy từ cùng ảnh chụp bộ nhớ đã dùng để dựng ghi chú bối cảnh."""
     return Analysis(
@@ -67,6 +95,7 @@ def build_analysis(
         tone=Tone(**tone) if tone else None,
         music_reason=music_reason or MUSIC_REASONS[music_decision],
         emotion_source=emotion_source,  # type: ignore[arg-type]
+        music_lead=lead,
     )
 
 
@@ -305,11 +334,15 @@ async def handle_chat(
 
         music_result: tuple[object | None, str | None] | None = None
         if goal:
+            # Có chip: chọn bài TRƯỚC (chỉ đọc catalog, rất nhanh) rồi ghi các bài vào ghi chú bối
+            # cảnh, để câu trả lời của LLM giới thiệu đúng những bài sẽ hiện kèm.
             music_decision = "chip"
-            reply_info, music_result = await asyncio.gather(
-                generate_with_fallback(text, llm_emotion, arousal, history, goal), run_music()
+            music_result = await run_music()
+            preview = _valid_songs(music_result[0]) if music_result[1] is None else None
+            llm_history = memory.with_music_note(history, preview or [])
+            reply, llm_backend, llm_warnings, _ = await generate_with_fallback(
+                text, llm_emotion, arousal, llm_history, goal
             )
-            reply, llm_backend, llm_warnings, _ = reply_info
         else:
             reply, llm_backend, llm_warnings, music_flag = await generate_with_fallback(
                 text, llm_emotion, arousal, history, goal
@@ -374,7 +407,8 @@ async def handle_chat(
     await memory.maybe_schedule_summary(session_id)
 
     assert snap is not None  # cả hai nhánh (safety, thường) đều đã chụp bộ nhớ
-    analysis = build_analysis(snap, tone, music_decision, emotion_source, guard_reason)
+    lead = music_lead(bool(songs), goal, emotion_dict["label"] if emotion_dict else None)
+    analysis = build_analysis(snap, tone, music_decision, emotion_source, guard_reason, lead)
 
     meta = Meta(
         llm_backend=llm_backend,
