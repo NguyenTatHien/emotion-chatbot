@@ -129,15 +129,9 @@ def _emotion_label(emotion: object) -> str:
 
 
 def _emotion_note(emotion: object) -> str:
-    """'Bình thường (73%)': tên tiếng Việt của nhãn kèm xác suất của nhãn đó (nếu có)."""
+    """Tên tiếng Việt của nhãn (KHÔNG kèm phần trăm — model nhỏ dễ chép số vào câu trả lời)."""
     label = _emotion_label(emotion)
-    name = _LABELS_VI.get(label, label)
-    probs = emotion.get("probs") if isinstance(emotion, dict) else None
-    prob = (probs or {}).get(label)
-    try:
-        return f"{name} ({float(prob):.0%})" if prob is not None else name
-    except (TypeError, ValueError):
-        return name
+    return _LABELS_VI.get(label, label)
 
 
 def _limit_history(history: list[dict]) -> list[dict]:
@@ -150,6 +144,59 @@ def _limit_history(history: list[dict]) -> list[dict]:
     return history[-_MAX_HISTORY_MESSAGES:]
 
 
+# R1 — vai trò & ranh giới (guardrail hành vi; sửa lỗi "Đừng đi / ở lại bên bạn" và
+# vai "người yêu" trong chat01 lượt 9, 12-13). Mệnh đề an toàn ghi rõ để không đè khối safety.
+_R1_ROLE_RULES = (
+    "Mình là một người bạn đồng hành: chỉ lắng nghe và đi cùng lựa chọn của người dùng — "
+    "không can ngăn, không khuyên người dùng bỏ hay làm điều gì, không thuyết phục ai ở lại "
+    "hay đi đâu; không tạo quan hệ riêng (người yêu, giữ ai ở lại, thân mật quá mức). "
+    "Người dùng nói muốn đi đâu, làm gì: hỏi thêm về điều đó thay vì can ngăn. "
+    "Yêu cầu đóng vai đặc biệt (người yêu, người thân): từ chối nhẹ nhàng một câu, "
+    "giữ vai người bạn đồng hành. "
+    "Nếu có dấu hiệu khủng hoảng (tự hại, tuyệt vọng): ưu tiên thông điệp an toàn, "
+    "đồng hành nhẹ nhàng, không bàn về kế hoạch đi đâu hay làm gì. "
+    "Không nói mình là người, không tự kể chuyện bản thân và không bịa thông tin về mình "
+    "(học hành, công việc, tuổi, nơi ở, chuyện riêng); chỉ tập trung vào người dùng."
+)
+
+# R4 — nhịp & hứng khởi (sửa lặp template + hứa rồi bỏ + no-recovery, chat01 lượt 3-4, 14-16).
+# Phụ thuộc giọng điệu: tone khuyên "không hỏi dồn" thì không hỏi (tone.py giữ quyền cao hơn).
+_R4_PACE_RULES = (
+    "Khi người dùng kể điều mới, phản ánh cảm xúc xong hỏi lại MỘT chi tiết cụ thể của chuyện đó "
+    "khi giọng điệu cho phép — không hỏi dồn khi người dùng đang quá yếu. "
+    "Không lặp lại một câu hỏi chung chung (như \"Bạn muốn nói gì?\") hai lượt liên tiếp; "
+    "mỗi lượt một câu hỏi khác nhau. "
+    "Không hứa điều mình không làm được ngay trong lượt này. "
+    "Nếu chưa hiểu hoặc nghe không rõ: hỏi lại xác nhận bằng một câu ngắn rồi mới trả lời; "
+    "nếu nhận lỗi của mình: sửa ngay trong cùng lượt, không đẩy việc trở lại người dùng."
+)
+
+# R5 — phong cách bề mặt (thêm rule kiến thức + ngôn ngữ; gộp các "không" cũ ở 165-168).
+_R5_STYLE_RULES = (
+    "Trả lời ngắn (1-3 câu), tự nhiên như nhắn tin, không liệt kê, không markdown, "
+    "không nhắc tên nhãn cảm xúc hay con số phần trăm, không nhắc bạn là AI. "
+    "Câu hỏi kiến thức chung (khoa học, công nghệ...): trả gọn 2-3 câu tự nhiên rồi rút về "
+    "câu chuyện, không bài giảng dài. "
+    "Trả lời theo ngôn ngữ người dùng đang dùng (tiếng Việt, tiếng Anh hoặc trộn cả hai)."
+)
+
+# Anti-fabrication — đặt GẦN CUỐI system (sát đầu ra, ngay trước luật nhạc) kèm ví dụ
+# few-shot ngược: model 3B nghe ví dụ tốt hơn mệnh đề trần (bằng chứng 3-seed C2:
+# mệnh đề giữa prompt bị "hữu ích" override → 2/3 seed bịa tên quán).
+_NOFAB_RULES = (
+    "KHÔNG bịa tên cụ thể mình không có dữ liệu (quán ăn, địa điểm, bài hát, số liệu, "
+    "nguồn tham khảo). Nếu không chắc: nói mình không biết và hỏi lại thay vì đoán.\n"
+    "Ví dụ:\n"
+    "\"đề xuất cho tôi những quán cơm gà ở Hồ Chí Minh đi\" → "
+    "\"Mình không có dữ liệu về quán cụ thể để gợi ý chính xác, nhưng kể mình nghe vì sao "
+    "bạn chọn cơm gà hôm nay được không?\"\n"
+    "\"gợi ý cho mình 5 quán phở ngon nhất\" → "
+    "\"Mình không chắc quán nào ngon nhất hiện nay, bạn thường ở khu nào để mình hỏi lại "
+    "bạn bè xem sao nha.\"\n"
+    "(Riêng bài hát: chỉ nhắc tên bài nằm trong dòng \"Bài sẽ gợi ý kèm câu trả lời\" nếu có.)"
+)
+
+
 def _build_messages(
     text: str, emotion: object, arousal: str, history: list[dict], goal: str | None
 ) -> list[dict]:
@@ -159,26 +206,25 @@ def _build_messages(
     nhãn; arousal: 'low'/'medium'/'high'; history: các lượt
     [{role:'user'|'assistant', content:str}] cũ.
     """
-    system = (
-        "Bạn là một người bạn tâm sự tiếng Việt ấm áp, đồng hành, lắng nghe, "
-        "trả lời theo đúng tâm trạng người dùng. "
-        "Hãy trả lời NGẮN (1-3 câu), tự nhiên như nhắn tin, không liệt kê, "
-        "không dùng markdown, không nhắc bạn là AI. "
-        "Làm theo dòng \"Giọng điệu nên dùng\" trong ghi chú của hệ thống. "
-        "Không nhắc tên nhãn cảm xúc hay con số phần trăm. "
-        "Bạn là chatbot đồng hành, không đóng vai một người có đời sống riêng: "
-        "không tự kể chuyện bản thân và không bịa thông tin về mình "
-        "(học hành, công việc, tuổi, nơi ở, chuyện riêng); chỉ tập trung vào người dùng. "
-        + _MUSIC_TAG_RULES
-    )
-    emotion_desc = f"Cảm xúc lượt hiện tại (hệ thống đo): {_emotion_note(emotion)}."
+    system_parts = [
+        _R1_ROLE_RULES,      # R1 guardrail — mạnh xếp trước
+        _R5_STYLE_RULES,     # R5 persona bề mặt + kiến thức + ngôn ngữ
+        _R4_PACE_RULES,      # R4 nhịp & hứng khởi (phụ thuộc tone)
+        "Làm theo dòng \"Giọng điệu nên dùng\" trong ghi chú của hệ thống.",  # R3 tone
+    ]
+    emotion_desc = f"Tâm trạng lượt hiện tại (hệ thống đo): {_emotion_note(emotion)}."
     if arousal:
         emotion_desc += f" Mức năng lượng giọng nói: {arousal}."
     goal_desc = _GOAL_HINTS.get(str(goal), "")
     limited = _limit_history(history or [])
     first = str((limited[0] or {}).get("content") or "") if limited else ""
     context_note = _CONTEXT_NOTE if first.lstrip().startswith(_CONTEXT_MARKER) else ""
-    system = "\n".join(x for x in [system, context_note, emotion_desc, goal_desc] if x)
+    system_parts += [x for x in [context_note, emotion_desc, goal_desc, _NOFAB_RULES] if x]
+    # R2: luật thẻ nhạc đặt GẦN CUỐI system prompt (định dạng bắt buộc được nhớ tốt nhất
+    # khi sát đầu ra) — NỘI DUNG NGUYÊN VĂN, không đổi (KEEP — hệ thống chỉ gợi ý nhạc
+    # khi người dùng thực sự cần).
+    system_parts.append(_MUSIC_TAG_RULES)
+    system = "\n".join(x for x in system_parts if x)
 
     msgs = [{"role": "system", "content": system}]
     for turn in limited:
@@ -221,12 +267,15 @@ def generate_reply(
             )
         inputs = tokenizer([prompt], return_tensors="pt").to(state["device"])
 
+        import os  # lazy-import (contract test nhẹ); dùng cho env LLM_MAX_NEW_TOKENS
+
         import torch
 
+        max_tokens = int(os.environ.get("LLM_MAX_NEW_TOKENS", "128"))
         with torch.no_grad():
             out_ids = model.generate(
                 **inputs,
-                max_new_tokens=128,
+                max_new_tokens=max_tokens,
                 do_sample=True,
                 temperature=0.7,
                 top_p=0.8,  # theo khuyến nghị Qwen3 cho chế độ không suy luận

@@ -52,7 +52,10 @@ def test_gemini_used_when_qwen_fails(client, remote_llm, net):
     assert req.headers["x-goog-api-key"] == KEY
     assert KEY not in str(req.url)
     payload = json.loads(req.read())
-    assert "đồng cảm" in payload["systemInstruction"]["parts"][0]["text"]
+    sys_text = payload["systemInstruction"]["parts"][0]["text"]
+    # Marker riêng của reply prompt (SUMMARY prompt không có luật thẻ nhạc)
+    assert "đồng hành" in sys_text
+    assert "Dòng đầu tiên của câu trả lời bắt buộc" in sys_text
     contents = payload["contents"]
     # cặp ghi chú bối cảnh + 1 lượt trước + tin hiện tại
     assert [c["role"] for c in contents] == ["user", "model", "user", "model", "user"]
@@ -67,8 +70,10 @@ def test_gemini_receives_full_backend_history(client, remote_llm, net):
         chat(client, f"lượt {i}")
     payloads = [json.loads(c.request.read()) for c in route.calls]
     # Lượt 10 kích hoạt tóm tắt nền cũng gọi Gemini; chỉ xét các lời gọi sinh câu trả lời.
+    # Marker riêng của reply prompt (SUMMARY prompt không có luật thẻ nhạc)
     chat_payloads = [
-        p for p in payloads if "đồng cảm" in p["systemInstruction"]["parts"][0]["text"]
+        p for p in payloads
+        if "Dòng đầu tiên của câu trả lời bắt buộc" in p["systemInstruction"]["parts"][0]["text"]
     ]
     # cặp bối cảnh + 9 lượt trước + tin hiện tại: Gemini không tự cắt thêm lịch sử
     assert len(chat_payloads[-1]["contents"]) == 2 + 18 + 1
