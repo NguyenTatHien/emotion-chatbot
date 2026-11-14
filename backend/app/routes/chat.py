@@ -80,6 +80,7 @@ async def chat(
                 goal=goal,
                 transcript_hint=transcript_hint,
                 audio_path=normalized.wav_path if normalized else None,
+                prosody_path=normalized.prosody_path if normalized else None,
                 speech_warning=speech_warning,
             )
         except pipeline.NoUsableInput as exc:

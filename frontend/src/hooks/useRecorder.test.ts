@@ -70,7 +70,7 @@ describe("useRecorder", () => {
     })
     expect(result.current.state).toBe("recording")
     expect(media.getUserMedia).toHaveBeenCalledWith({
-      audio: { echoCancellation: true, noiseSuppression: true },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false },
     })
     expect(media.recorders[0].mimeType).toBe("audio/ogg;codecs=opus")
     expect(media.recorders[0].timeslice).toBe(250)

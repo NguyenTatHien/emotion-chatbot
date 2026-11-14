@@ -210,6 +210,7 @@ async def handle_chat(
     audio_path: str | None = None,
     transcript: str | None = None,
     speech_warning: str | None = None,
+    prosody_path: str | None = None,
 ) -> ChatResponse:
     settings = get_settings()
     started = time.perf_counter()
@@ -230,7 +231,8 @@ async def handle_chat(
             try_call(
                 "speech.prosody",
                 registry.get("speech", "extract_prosody"),
-                audio_path,
+                # Bản đã bỏ khoảng lặng (nếu có) để độ to trung bình phản ánh lúc đang nói.
+                prosody_path or audio_path,
                 timeout=settings.PROSODY_TIMEOUT,
             ),
         )

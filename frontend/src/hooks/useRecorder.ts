@@ -217,7 +217,13 @@ export function useRecorder({
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
+        // Tắt tự cân âm lượng (AGC): giữ độ to thật của giọng để đo mức kích động
+        // (nói to ra to, thì thầm ra nhỏ). Bật AGC thì mọi giọng bị kéo về "vừa".
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: false,
+        },
       })
     } catch (err) {
       setState("idle")

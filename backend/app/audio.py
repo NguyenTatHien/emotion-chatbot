@@ -24,6 +24,16 @@ READ_MARGIN_S = 1.5
 # Dung sai khi so thời lượng đo được với giới hạn.
 DURATION_TOLERANCE_S = 1.0
 
+# Bản WAV riêng cho đo mức kích động: bỏ mọi đoạn lặng (đầu, cuối và giữa câu dài hơn 0,3 s)
+# để độ to trung bình phản ánh lúc đang nói, không bị khoảng lặng kéo xuống.
+SILENCE_THRESHOLD = "-45dB"
+SILENCE_FILTER = (
+    f"silenceremove=start_periods=1:start_threshold={SILENCE_THRESHOLD}:"
+    f"stop_periods=-1:stop_duration=0.3:stop_threshold={SILENCE_THRESHOLD}"
+)
+# Bản cắt ngắn hơn mức này (ví dụ thì thầm rất nhỏ bị coi là lặng) thì dùng lại bản đầy đủ.
+MIN_TRIMMED_S = 0.3
+
 
 class AudioError(Exception):
     """Lỗi xử lý audio; `message` là thông điệp tiếng Việt hiển thị cho người dùng."""
@@ -57,6 +67,8 @@ class AudioToolMissing(AudioError):
 class NormalizedAudio:
     wav_path: str
     duration_s: float
+    # WAV đã bỏ khoảng lặng, chỉ dùng để đo mức kích động; None = dùng `wav_path`.
+    prosody_path: str | None = None
     _tmpdir: tempfile.TemporaryDirectory | None = field(default=None, repr=False)
 
     def close(self) -> None:
@@ -151,4 +163,31 @@ async def normalize(path: str) -> NormalizedAudio:
     except BaseException:
         tmpdir.cleanup()
         raise
-    return NormalizedAudio(wav_path=str(out), duration_s=duration, _tmpdir=tmpdir)
+    prosody = await _trim_silence(ffmpeg, out, Path(tmpdir.name) / "prosody.wav")
+    return NormalizedAudio(
+        wav_path=str(out), duration_s=duration, prosody_path=prosody, _tmpdir=tmpdir
+    )
+
+
+async def _trim_silence(ffmpeg: str, src: Path, dst: Path) -> str | None:
+    """Tạo bản WAV bỏ khoảng lặng cho bước đo mức kích động.
+
+    Lỗi, quá thời gian, hoặc bản cắt quá ngắn thì trả None (pipeline dùng bản đầy đủ):
+    bước này chỉ để đo chính xác hơn, không bao giờ làm hỏng lượt chat.
+    """
+    args = [
+        ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+        "-i", str(src), "-af", SILENCE_FILTER,
+        "-ac", "1", "-ar", "16000", "-sample_fmt", "s16",
+        str(dst),
+    ]  # fmt: skip
+    try:
+        proc = await asyncio.to_thread(_run_ffmpeg, args)
+        if proc.returncode != 0 or not dst.exists():
+            return None
+        if _wav_duration(dst) < MIN_TRIMMED_S:
+            return None
+    except Exception as exc:  # noqa: BLE001 - cắt lặng là tuỳ chọn
+        logger.info("Không cắt được khoảng lặng, dùng bản đầy đủ: %r", exc)
+        return None
+    return str(dst)

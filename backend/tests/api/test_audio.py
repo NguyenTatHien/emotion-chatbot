@@ -63,11 +63,14 @@ def test_formats_are_normalized_to_wav_16k_mono(client, audio_samples, spy_speec
     assert r.status_code == 200
     assert r.json()["transcript"] == "hôm nay mệt quá"
     assert len(spy_speech["paths"]) == 2
-    assert spy_speech["paths"][0] == spy_speech["paths"][1]
+    transcribe_path, prosody_path = spy_speech["paths"]
+    # Transcribe nhận bản đầy đủ; prosody nhận bản đã bỏ lặng, cùng thư mục tạm.
+    assert transcribe_path.endswith("normalized.wav")
+    assert Path(prosody_path).parent == Path(transcribe_path).parent
     # 1 kênh, 16 kHz, 16-bit
     assert spy_speech["headers"] == [(1, 16000, 2)] * 2
-    # Thư mục tạm của lượt này đã bị xoá.
-    assert not Path(spy_speech["paths"][0]).exists()
+    # Thư mục tạm của lượt này đã bị xoá (cả hai file).
+    assert not Path(transcribe_path).exists() and not Path(prosody_path).exists()
     assert _temp_dirs() - before == set()
 
 
@@ -216,3 +219,70 @@ def test_missing_ffmpeg_with_message_still_answers(client, audio_samples, monkey
     r = post_audio(client, audio_samples["webm"], message="mình buồn")
     assert r.status_code == 200
     assert r.json()["meta"]["degraded"] is True
+
+
+# --- Bỏ khoảng lặng cho bước đo mức kích động ---
+
+
+def _write_wav(path, segments, rate=16000):
+    """segments: list (giây, biên độ 0..1); biên độ 0 là lặng, >0 là sóng sin 220 Hz."""
+    import math
+    import struct
+
+    frames = bytearray()
+    for seconds, amp in segments:
+        for i in range(int(seconds * rate)):
+            value = int(32767 * amp * math.sin(2 * math.pi * 220 * i / rate))
+            frames += struct.pack("<h", value)
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(bytes(frames))
+
+
+async def test_prosody_copy_drops_silence(tmp_path):
+    from app import audio
+
+    src = tmp_path / "padded.wav"
+    _write_wav(src, [(1.5, 0.0), (1.0, 0.5), (1.5, 0.0)])
+    normalized = await audio.normalize(str(src))
+    try:
+        assert normalized.duration_s == pytest.approx(4.0, abs=0.1)
+        assert normalized.prosody_path is not None
+        with wave.open(normalized.prosody_path, "rb") as w:
+            trimmed = w.getnframes() / w.getframerate()
+        assert trimmed < 1.6  # còn khoảng phần đang nói, bỏ 3 giây lặng
+    finally:
+        normalized.close()
+
+
+async def test_all_silence_keeps_full_wav_for_prosody(tmp_path):
+    from app import audio
+
+    src = tmp_path / "silent.wav"
+    _write_wav(src, [(2.0, 0.0)])
+    normalized = await audio.normalize(str(src))
+    try:
+        assert normalized.prosody_path is None
+    finally:
+        normalized.close()
+
+
+def test_prosody_gets_trimmed_copy_and_transcribe_gets_full(client, spy_speech):
+    import io
+
+    buf = io.BytesIO()
+    path = "padded.wav"
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / path
+        _write_wav(p, [(1.0, 0.0), (1.0, 0.5), (1.0, 0.0)])
+        buf.write(p.read_bytes())
+    r = post_audio(client, buf.getvalue(), name="voice.wav")
+    assert r.status_code == 200
+    transcribe_path, prosody_path = spy_speech["paths"]
+    assert transcribe_path.endswith("normalized.wav")
+    assert prosody_path.endswith("prosody.wav")
