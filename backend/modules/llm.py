@@ -267,6 +267,8 @@ def generate_reply(
             )
         inputs = tokenizer([prompt], return_tensors="pt").to(state["device"])
 
+        import os  # lazy-import (contract test nhẹ); dùng cho env LLM_MAX_NEW_TOKENS
+
         import torch
 
         max_tokens = int(os.environ.get("LLM_MAX_NEW_TOKENS", "128"))

@@ -78,11 +78,13 @@ def test_model_error_is_logged_and_raised(monkeypatch, caplog):
     assert "generate_reply lỗi" in caplog.text
 
 
-def test_emotion_note_in_vietnamese_with_probability():
+def test_emotion_note_in_vietnamese_without_probability():
+    """% bị bỏ khỏi prompt (model nhỏ dễ chép số vào câu trả lời — chat01 context-leak)."""
     built = llm._build_messages(
         "mình phân vân quá", {"label": "Other", "probs": {"Other": 0.73}}, "", [], None
     )
-    assert "Bình thường (73%)" in built[0]["content"]
+    assert "Bình thường" in built[0]["content"]
+    assert "(73%)" not in built[0]["content"]
     assert "Vui vẻ" in llm._emotion_note("Enjoyment")
 
 
