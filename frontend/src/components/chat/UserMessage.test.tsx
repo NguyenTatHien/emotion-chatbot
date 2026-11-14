@@ -14,7 +14,7 @@ const PROBS = {
   Surprise: 0,
 }
 
-function message(emotion: Emotion | null): UserMsg {
+function message(emotion: Emotion | null, over: Partial<UserMsg> = {}): UserMsg {
   return {
     id: "u1",
     role: "user",
@@ -23,54 +23,44 @@ function message(emotion: Emotion | null): UserMsg {
     createdAt: "2026-01-01T00:00:00.000Z",
     goal: null,
     emotion,
-    kind: "voice",
+    ...over,
   }
 }
 
-const NOTE = /Theo lời nói/
+const FUSED: Emotion = {
+  label: "Anger",
+  probs: PROBS,
+  arousal: "high",
+  label_text: "Sadness",
+  probs_text: PROBS,
+}
 
-describe("UserMessage: ghi chú late fusion", () => {
-  it("nhãn bị đổi: hiện dòng Theo lời nói / kết hợp giọng", () => {
-    render(
-      <UserMessage
-        onRetry={vi.fn()}
-        message={message({
-          label: "Anger",
-          probs: PROBS,
-          arousal: "high",
-          label_text: "Sadness",
-          probs_text: PROBS,
-        })}
-      />
+describe("UserMessage: không dán nhãn cảm xúc", () => {
+  it("tin đã gửi có emotion: không có chip cảm xúc, chip kích động hay phần trăm", () => {
+    const { container } = render(
+      <UserMessage onRetry={vi.fn()} message={message(FUSED)} />
     )
-    expect(
-      screen.getByText("Theo lời nói: Buồn · kết hợp giọng: Tức giận")
-    ).toBeInTheDocument()
+    expect(screen.getByText("hôm nay mệt quá")).toBeInTheDocument()
+    expect(screen.queryByRole("button")).not.toBeInTheDocument()
+    expect(container).not.toHaveTextContent(
+      /Buồn|Vui vẻ|Tức giận|Lo sợ|kích động|%/i
+    )
   })
 
-  it("không có label_text (gõ chữ): không hiện dòng ghi chú", () => {
-    render(
-      <UserMessage
-        onRetry={vi.fn()}
-        message={message({ label: "Sadness", probs: PROBS, arousal: null })}
-      />
-    )
-    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
+  it("không có dòng Theo lời nói / kết hợp giọng", () => {
+    render(<UserMessage onRetry={vi.fn()} message={message(FUSED)} />)
+    expect(screen.queryByText(/Theo lời nói/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/kết hợp giọng/)).not.toBeInTheDocument()
   })
 
-  it("label_text trùng label: không hiện dòng ghi chú", () => {
+  it("tin giọng nói vẫn hiện transcript", () => {
     render(
       <UserMessage
         onRetry={vi.fn()}
-        message={message({
-          label: "Sadness",
-          probs: PROBS,
-          arousal: "low",
-          label_text: "Sadness",
-          probs_text: PROBS,
-        })}
+        message={message(FUSED, { kind: "voice", text: "mình mệt lắm" })}
       />
     )
-    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
+    expect(screen.getByText("mình mệt lắm")).toBeInTheDocument()
+    expect(screen.queryByText(/Theo lời nói/)).not.toBeInTheDocument()
   })
 })

@@ -1,6 +1,8 @@
 """Bộ điều phối một lượt chat: an toàn -> cảm xúc -> quyết định nhạc -> lưu phiên.
 
 Late fusion (app/fusion.py) chạy ngay sau cảm xúc, trước LLM và nhạc.
+Giọng điệu (app/tone.py) chọn từ cảm xúc đã qua fusion, rồi đi cùng ghi chú bối cảnh tới LLM;
+`history` được dựng sau bước này. `meta.analysis` mô tả đúng dữ liệu đã dùng cho lượt.
 Nhạc: safety -> không; có chip mục tiêu -> luôn có (llm || music song song);
 còn lại do LLM quyết bằng thẻ `[NHAC:CO]` / `[NHAC:KHONG]` (music chạy sau llm).
 """
@@ -20,10 +22,49 @@ from app.config import get_settings
 from app.constants import AROUSAL_LEVELS, LABELS, MODULE_NAMES
 from app.fusion import apply_fusion
 from app.music_tag import split_music_tag
-from app.schemas import ChatResponse, Emotion, Meta, MusicDecision, SessionTurn, Song
-from app.session import store
+from app.schemas import (
+    Analysis,
+    ChatResponse,
+    Emotion,
+    Meta,
+    MusicDecision,
+    RecentEmotion,
+    SessionTurn,
+    Song,
+    Tone,
+)
+from app.session import MemorySnapshot, store
+from app.tone import choose_tone
 
 logger = logging.getLogger("emotion_chatbot.pipeline")
+
+
+MUSIC_REASONS: dict[str, str] = {
+    "chip": "Bạn đã chọn mục tiêu nghe nhạc",
+    "llm": "Bot thấy lúc này nghe nhạc có thể giúp bạn",
+    "llm_no": "Chưa cần gợi ý nhạc ở lượt này",
+    "no_tag": "Không gợi ý nhạc (mô hình không đưa ra quyết định)",
+    "safety": "Không gợi ý nhạc ở lượt cần hỗ trợ an toàn",
+}
+
+
+def build_analysis(
+    snap: MemorySnapshot,
+    tone: dict | None,
+    music_decision: MusicDecision,
+    emotion_source: str | None,
+) -> Analysis:
+    """Phân tích của lượt, lấy từ cùng ảnh chụp bộ nhớ đã dùng để dựng ghi chú bối cảnh."""
+    return Analysis(
+        turn=snap.total + 1,
+        recent_emotions=[
+            RecentEmotion(turn=n, label=label) for n, label in memory.recent_emotion_entries(snap)
+        ],
+        last_music_turn=memory.last_music_turn(snap),
+        tone=Tone(**tone) if tone else None,
+        music_reason=MUSIC_REASONS[music_decision],
+        emotion_source=emotion_source,  # type: ignore[arg-type]
+    )
 
 
 class NoUsableInput(Exception):
@@ -202,7 +243,10 @@ async def handle_chat(
         warnings.append(warn)
         risk = fallbacks.keyword_safety(text)
 
-    history = await memory.build_history(session_id)
+    history: list[dict] = []
+    snap: MemorySnapshot | None = None
+    tone: dict | None = None
+    emotion_source: str | None = None
     emotion_dict: dict | None = None
     fusion_applied = False
     songs: list[Song] = []
@@ -211,6 +255,7 @@ async def handle_chat(
     llm_backend = "canned"
     if risk:
         reply = (safety_msg or "").strip() or fallbacks.safety_message()
+        snap = await store.snapshot(session_id)  # chỉ để dựng analysis; không gọi LLM
     else:
         # Bước 3: cảm xúc.
         result, warn = await try_call(
@@ -226,6 +271,12 @@ async def handle_chat(
         emotion_dict, fusion_applied = apply_fusion(
             emotion_dict, arousal, settings.FUSION_ALPHA, from_module
         )
+
+        emotion_source = "module" if from_module else "fallback"
+
+        # Giọng điệu chọn từ cảm xúc đã kết hợp; history dựng sau bước này để mang giọng điệu.
+        tone = choose_tone(emotion_dict, arousal)
+        history, snap = await memory.build_context(session_id, tone["text"])
 
         # Bước 4: quyết định nhạc. Có chip -> llm || music đồng thời; không chip -> llm trước,
         # chỉ gọi music khi LLM gắn thẻ CO.
@@ -296,6 +347,9 @@ async def handle_chat(
 
     await memory.maybe_schedule_summary(session_id)
 
+    assert snap is not None  # cả hai nhánh (safety, thường) đều đã chụp bộ nhớ
+    analysis = build_analysis(snap, tone, music_decision, emotion_source)
+
     meta = Meta(
         llm_backend=llm_backend,
         model_mode=settings.MODEL_MODE,
@@ -305,6 +359,7 @@ async def handle_chat(
         warnings=warnings,
         music_decision=music_decision,
         fusion_applied=fusion_applied,
+        analysis=analysis,
     )
     return ChatResponse(
         turn_id=turn_id,

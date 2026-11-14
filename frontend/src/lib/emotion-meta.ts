@@ -39,12 +39,6 @@ export const EMOTION_META: Record<EmotionLabel, EmotionMeta> = {
   Surprise: { vi: "Ngạc nhiên", icon: Sparkles, cssVar: "--emo-surprise" },
 }
 
-export const AROUSAL_VI: Record<Arousal, string> = {
-  low: "kích động thấp",
-  medium: "kích động vừa",
-  high: "kích động cao",
-}
-
 export function isEmotionLabel(value: string): value is EmotionLabel {
   return (EMOTION_LABELS as readonly string[]).includes(value)
 }

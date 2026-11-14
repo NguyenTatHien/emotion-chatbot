@@ -1,6 +1,8 @@
-"""GET /api/health, /api/meta, /api/session/{session_id}."""
+"""GET /api/health, /api/meta, GET và DELETE /api/session/{session_id}."""
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Path, Response, status
 
 from app import registry
 from app.clients import model_server
@@ -35,3 +37,12 @@ async def meta() -> MetaResponse:
 @router.get("/session/{session_id}", response_model=SessionResponse)
 async def session(session_id: str) -> SessionResponse:
     return SessionResponse(session_id=session_id, turns=await store.get_turns(session_id))
+
+
+@router.delete("/session/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_session(
+    session_id: Annotated[str, Path(min_length=1, max_length=64)],
+) -> Response:
+    """Xoá phiên khỏi bộ nhớ server; luôn 204, kể cả khi phiên không tồn tại (idempotent)."""
+    await store.delete(session_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -119,6 +119,15 @@ class SessionStore:
                 state.summarized_count = summarized_count
             return True
 
+    async def delete(self, session_id: str) -> None:
+        """Xoá hẳn phiên (lượt, tóm tắt, trạng thái tóm tắt); không có phiên thì không làm gì.
+
+        Tác vụ tóm tắt đang chạy cho phiên này sẽ bị bỏ kết quả: `finish_summary` so danh tính
+        trạng thái nên không tạo lại phiên đã xoá, cũng không ghi vào phiên mới cùng id.
+        """
+        async with self._lock:
+            self._sessions.pop(session_id, None)
+
     def clear(self) -> None:
         self._sessions.clear()
 

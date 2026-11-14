@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react"
+import { deleteSession } from "@/lib/api"
 import {
   CONVERSATIONS_KEY,
   SESSION_KEY,
@@ -109,9 +110,16 @@ export function useSession() {
     [save]
   )
 
-  /** Xoá hẳn một cuộc khỏi trình duyệt; xoá cuộc đang mở thì chuyển sang cuộc mới. */
+  /**
+   * Xoá hẳn một cuộc khỏi trình duyệt và trên server; xoá cuộc đang mở thì chuyển sang cuộc mới.
+   * Lời gọi xoá trên server chỉ "bắn rồi quên": lỗi mạng không chặn việc xoá ở trình duyệt
+   * và không hiện lỗi.
+   */
   const deleteConversation = useCallback(
     (id: string) => {
+      deleteSession(id).catch(() => {
+        /* mất mạng hoặc server lỗi: bỏ qua, bản trong trình duyệt vẫn bị xoá */
+      })
       removeItem(messagesKey(id))
       setConversations((list) => save(list.filter((c) => c.id !== id)))
       setSessionId((current) => {

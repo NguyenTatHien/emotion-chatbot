@@ -66,8 +66,39 @@ async def test_sessions_are_isolated():
     assert await memory.build_history("b") == []
 
 
-async def test_first_turn_has_no_context_pair():
+async def test_empty_session_without_tone_has_no_context_pair():
     assert await memory.build_history("s") == []
+
+
+async def test_first_turn_with_tone_has_context_pair():
+    history = await memory.build_history("s", "Chậm, dịu.")
+    assert len(history) == 2
+    assert history[0]["role"] == "user"
+    assert history[0]["content"].startswith(memory.CONTEXT_MARKER)
+    assert "lượt thứ 1" in history[0]["content"]
+    assert "Chưa gợi ý nhạc lần nào." in history[0]["content"]
+    assert history[0]["content"].splitlines()[-1] == "Giọng điệu nên dùng: Chậm, dịu."
+    assert history[1] == {"role": "assistant", "content": memory.CONTEXT_ACK}
+
+
+async def test_tone_line_comes_after_summary_and_music_profile():
+    await fill("s", 12, songs_at=(2,))
+    state = store._sessions["s"]
+    state.summary = "Người dùng kể chuyện thi cử."
+    state.summarized_count = 4
+    lines = (await memory.build_history("s", "Nhẹ nhàng."))[0]["content"].splitlines()
+    assert lines[-1] == "Giọng điệu nên dùng: Nhẹ nhàng."
+    assert lines[-2].startswith("Nhạc đã gợi ý:")
+    assert lines[-3].startswith("Tóm tắt:")
+
+
+async def test_build_context_returns_the_snapshot_it_used():
+    await fill("s", 3, songs_at=(2,))
+    history, snap = await memory.build_context("s", "Dịu.")
+    assert snap.total == 3
+    assert memory.last_music_turn(snap) == 2
+    assert memory.recent_emotion_entries(snap) == []  # lượt mẫu không có cảm xúc
+    assert "lượt thứ 4" in history[0]["content"]
 
 
 async def test_short_session_starts_with_facts_pair():
@@ -360,6 +391,69 @@ async def test_summary_for_deleted_session_is_dropped(gemini_key, monkeypatch):
     await memory.drain()
     snap = await store.snapshot("s")
     assert snap.summary == "" and snap.total == 0
+
+
+async def test_summary_in_flight_when_session_deleted_does_not_recreate_it(
+    gemini_key, monkeypatch
+):
+    release = asyncio.Event()
+
+    async def slow(previous, turns):
+        await release.wait()
+        return "Muộn."
+
+    monkeypatch.setattr(gemini, "summarize", slow)
+    await run_turns(10)
+    assert store._sessions["s"].summarizing is True
+    await store.delete("s")
+    release.set()
+    await memory.drain()
+    assert "s" not in store._sessions
+    snap = await store.snapshot("s")
+    assert snap.summary == "" and snap.total == 0
+    assert await memory.build_history("s") == []
+
+
+async def test_summary_in_flight_does_not_write_into_new_session_with_same_id(
+    gemini_key, monkeypatch
+):
+    release = asyncio.Event()
+
+    async def slow(previous, turns):
+        await release.wait()
+        return "Của phiên cũ."
+
+    monkeypatch.setattr(gemini, "summarize", slow)
+    await run_turns(10)
+    await store.delete("s")
+    await store.append_turn("s", turn(1))  # phiên mới trùng id
+    release.set()
+    await memory.drain()
+    snap = await store.snapshot("s")
+    assert snap.total == 1
+    assert snap.summary == "" and snap.summarized_count == 0
+    assert store._sessions["s"].summarizing is False
+
+
+async def test_store_delete_removes_everything_and_is_idempotent():
+    await fill("s", 3)
+    state = store._sessions["s"]
+    state.summary = "Tóm tắt."
+    state.summarized_count = 2
+    await store.delete("s")
+    snap = await store.snapshot("s")
+    assert snap.turns == [] and snap.total == 0
+    assert snap.summary == "" and snap.summarized_count == 0
+    await store.delete("s")
+    await store.delete("chua-co")
+
+
+async def test_store_delete_keeps_other_sessions():
+    await fill("a", 2)
+    await fill("b", 2)
+    await store.delete("a")
+    assert await store.get_turns("a") == []
+    assert len(await store.get_turns("b")) == 2
 
 
 async def test_gemini_429_during_summary_keeps_chat_working(gemini_key):

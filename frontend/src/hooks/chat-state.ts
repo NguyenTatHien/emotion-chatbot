@@ -1,4 +1,5 @@
 import type {
+  Analysis,
   ChatResponse,
   Emotion,
   Rating,
@@ -38,6 +39,12 @@ export interface BotMessage {
   turnId?: string
   /** Đánh giá đã gửi cho câu trả lời này. */
   rating?: Rating | null
+  /** Phần phân tích của lượt (khung "Đã phân tích"); tin cũ không có thì không hiện khung. */
+  analysis?: Analysis | null
+  /** Cảm xúc của lượt (null ở lượt an toàn), dùng cho khung phân tích. */
+  emotion?: Emotion | null
+  /** Thời gian xử lý của lượt (ms), hiện ở tiêu đề khung phân tích. */
+  latencyMs?: number
   /** Chỉ true với tin vừa nhận (để hiện dần); không lưu vào localStorage. */
   fresh?: boolean
 }
@@ -133,6 +140,9 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         turnId: response.turn_id,
         rating: null,
         fresh: true,
+        analysis: response.meta?.analysis ?? null,
+        emotion: response.safety ? null : (response.emotion ?? null),
+        latencyMs: response.meta?.latency_ms,
       })
       return { ...state, messages }
     }

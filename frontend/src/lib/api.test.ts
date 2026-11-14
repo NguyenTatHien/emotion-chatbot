@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { ApiError, getSession, sendChat } from "./api"
+import { ApiError, deleteSession, getSession, sendChat } from "./api"
 
 function mockFetch(impl: (url: string, init?: RequestInit) => Response | Promise<Response>) {
   const fn = vi.fn(async (url: string, init?: RequestInit) => impl(url, init))
@@ -49,5 +49,22 @@ describe("getSession", () => {
     const fetchMock = mockFetch(() => Response.json({ session_id: "a b", turns: [] }))
     await getSession("a b")
     expect(fetchMock.mock.calls[0][0]).toBe("/api/session/a%20b")
+  })
+})
+
+describe("deleteSession", () => {
+  it("gọi DELETE /api/session/{id} với id đã mã hoá", async () => {
+    const fetchMock = mockFetch(() => new Response(null, { status: 204 }))
+    await expect(deleteSession("s 1/x")).resolves.toBeUndefined()
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe("/api/session/s%201%2Fx")
+    expect(init?.method).toBe("DELETE")
+  })
+
+  it("ném ApiError khi HTTP lỗi", async () => {
+    mockFetch(() => Response.json({ detail: "quá dài" }, { status: 422 }))
+    const err = await deleteSession("s").catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err).toMatchObject({ status: 422 })
   })
 })

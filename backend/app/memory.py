@@ -1,8 +1,9 @@
 """Bộ nhớ hội thoại trong một cuộc trò chuyện: dựng `history` cho LLM và tóm tắt nền.
 
 `history` gửi LLM gồm (1) cặp tin bối cảnh (dữ kiện: lượt thứ mấy, cảm xúc các lượt gần đây,
-lần gợi ý nhạc gần nhất; cộng bản tóm tắt và hồ sơ nhạc nếu có), có từ lượt thứ hai trở đi,
-rồi (2) các lượt chưa được tóm tắt, nguyên văn. Backend là nơi duy nhất quyết định độ dài.
+lần gợi ý nhạc gần nhất, giọng điệu nên dùng; cộng bản tóm tắt và hồ sơ nhạc nếu có), có từ
+lượt đầu tiên khi đã có giọng điệu, rồi (2) các lượt chưa được tóm tắt, nguyên văn.
+Backend là nơi duy nhất quyết định độ dài.
 Tóm tắt chạy ở nền bằng Gemini, sau khi đã trả lời người dùng; lỗi chỉ ghi log.
 """
 
@@ -24,6 +25,8 @@ CONTEXT_HEADER = (
 CONTEXT_ACK = "Mình nhớ rồi."
 MAX_MUSIC_PROFILE_TURNS = 5
 RECENT_EMOTION_TURNS = 3
+SAFETY_LABEL = "safety"
+TONE_PREFIX = "Giọng điệu nên dùng:"
 
 _RATING_VI = {"up": "thích", "down": "không thích"}
 
@@ -46,18 +49,29 @@ def _music_profile(snap: MemorySnapshot) -> str:
     return "; ".join(parts)
 
 
-def _recent_emotions(snap: MemorySnapshot) -> str:
-    """Cảm xúc CafeBERT của vài lượt gần nhất, để LLM biết buồn đã kéo dài hay chưa."""
-    parts = []
+def recent_emotion_entries(snap: MemorySnapshot) -> list[tuple[int, str]]:
+    """(số lượt, nhãn) của vài lượt gần nhất; lượt safety có nhãn `safety`."""
+    entries = []
     for i, turn in list(enumerate(snap.turns))[-RECENT_EMOTION_TURNS:]:
         number = snap.first_index + i + 1
         if turn.safety:
-            label = "nội dung nhạy cảm"
-        elif turn.emotion is None:
-            continue
-        else:
-            label = LABELS_VI.get(turn.emotion.label, turn.emotion.label)
-        parts.append(f"lượt {number} {label}")
+            entries.append((number, SAFETY_LABEL))
+        elif turn.emotion is not None:
+            entries.append((number, turn.emotion.label))
+    return entries
+
+
+def last_music_turn(snap: MemorySnapshot) -> int | None:
+    music_turns = [snap.first_index + i + 1 for i, t in enumerate(snap.turns) if t.songs]
+    return music_turns[-1] if music_turns else None
+
+
+def _recent_emotions(snap: MemorySnapshot) -> str:
+    """Cảm xúc CafeBERT của vài lượt gần nhất, để LLM biết buồn đã kéo dài hay chưa."""
+    parts = []
+    for number, label in recent_emotion_entries(snap):
+        name = "nội dung nhạy cảm" if label == SAFETY_LABEL else LABELS_VI.get(label, label)
+        parts.append(f"lượt {number} {name}")
     return "; ".join(parts)
 
 
@@ -67,9 +81,8 @@ def _facts(snap: MemorySnapshot) -> list[str]:
     emotions = _recent_emotions(snap)
     if emotions:
         facts.append(f"Cảm xúc các lượt gần đây: {emotions}.")
-    music_turns = [snap.first_index + i + 1 for i, t in enumerate(snap.turns) if t.songs]
-    if music_turns:
-        last = music_turns[-1]
+    last = last_music_turn(snap)
+    if last is not None:
         facts.append(
             f"Lượt gần nhất có gợi ý nhạc: lượt {last} (cách đây {snap.total + 1 - last} lượt)."
         )
@@ -78,8 +91,8 @@ def _facts(snap: MemorySnapshot) -> list[str]:
     return facts
 
 
-def _context_message(snap: MemorySnapshot) -> str | None:
-    if snap.total == 0:
+def _context_message(snap: MemorySnapshot, tone_text: str | None) -> str | None:
+    if snap.total == 0 and not tone_text:
         return None
     lines = _facts(snap)
     if snap.summary.strip():
@@ -87,15 +100,17 @@ def _context_message(snap: MemorySnapshot) -> str | None:
     profile = _music_profile(snap)
     if profile:
         lines.append(f"Nhạc đã gợi ý: {profile}")
+    if tone_text:
+        lines.append(f"{TONE_PREFIX} {tone_text}")
     return "\n".join([CONTEXT_HEADER, *lines])
 
 
-def history_from_snapshot(snap: MemorySnapshot) -> list[dict]:
+def history_from_snapshot(snap: MemorySnapshot, tone_text: str | None = None) -> list[dict]:
     settings = get_settings()
     cap = settings.HISTORY_TURNS + 2 * settings.SUMMARY_BATCH_TURNS
 
     history: list[dict] = []
-    context = _context_message(snap)
+    context = _context_message(snap, tone_text)
     if context:
         history.append({"role": "user", "content": context})
         history.append({"role": "assistant", "content": CONTEXT_ACK})
@@ -108,9 +123,20 @@ def history_from_snapshot(snap: MemorySnapshot) -> list[dict]:
     return history
 
 
-async def build_history(session_id: str) -> list[dict]:
-    """Lịch sử gửi LLM cho lượt kế tiếp của phiên: [cặp bối cảnh] + lượt chưa tóm tắt."""
-    return history_from_snapshot(await store.snapshot(session_id))
+async def build_context(
+    session_id: str, tone_text: str | None = None
+) -> tuple[list[dict], MemorySnapshot]:
+    """Lịch sử gửi LLM kèm đúng ảnh chụp bộ nhớ đã dùng để dựng nó (chỉ gọi snapshot một lần)."""
+    snap = await store.snapshot(session_id)
+    return history_from_snapshot(snap, tone_text), snap
+
+
+async def build_history(session_id: str, tone_text: str | None = None) -> list[dict]:
+    """Lịch sử gửi LLM cho lượt kế tiếp của phiên: [cặp bối cảnh] + lượt chưa tóm tắt.
+
+    Cặp bối cảnh có khi phiên đã có lượt hoặc có `tone_text` (lượt đầu tiên).
+    """
+    return (await build_context(session_id, tone_text))[0]
 
 
 async def maybe_schedule_summary(session_id: str) -> None:
