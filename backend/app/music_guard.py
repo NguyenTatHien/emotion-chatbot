@@ -37,10 +37,13 @@ _REQUEST_PHRASES = (
     "bai hat",
     "bai nao",
     "bai gi",
+    "bai nhac",        # "đề xuất cho mình 5 bài nhạc..." (thật từ E2E prod-chat test 2026-11-15)
     "ca khuc",
     "nhac gi",
     "nhac nao",
     "nghe gi",
+    "de xuat nhac",    # "đề xuất ... nhạc"
+    "de xuat bai",     # "đề xuất ... bài hát/bài nào đó"
     "playlist",
     "lofi",
     "nhac chill",

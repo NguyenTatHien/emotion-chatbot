@@ -25,8 +25,11 @@ def _value(name: str) -> str:
 # khoảng trắng), giữ mọi biến thể cũ.
 _BRACKETED = rf"\[\s*\w{{0,3}}\s*{_NHAC}\s*[:：]\s*{_value('b')}\s*\]"
 _BARE_LINE = rf"^[ \t]*{_NHAC}[ \t]*[:：][ \t]*{_value('l')}[ \t]*$"
+# Model nhỏ phát sinh tag tiếng Anh [MUSIC:...] (thật từ test 2026-11-15) — cùng gia đình
+# thẻ điều khiển, xoá toàn bộ dòng chứa nó (nội dung sau thẻ là echo danh sách).
+_MUSIC_EN_LINE = r"^[ \t]*\[[ \t]*m[u]s[i]c[ \t]*[:：].*$"
 
-_TAG_RE = re.compile(f"{_BRACKETED}|{_BARE_LINE}", re.IGNORECASE | re.MULTILINE)
+_TAG_RE = re.compile(f"{_BRACKETED}|{_BARE_LINE}|{_MUSIC_EN_LINE}", re.IGNORECASE | re.MULTILINE)
 
 
 _CONTEXT_LINE_PREFIXES = ("[boi canh cuoc tro chuyen", "boi canh cuoc tro chuyen")
@@ -94,7 +97,7 @@ def split_music_tag(text: str) -> tuple[str, bool | None]:
         removed = True
         if decision is None:
             value = match.group("b") or match.group("l")
-            decision = value.lower().startswith("c")
+            decision = None if value is None else value.lower().startswith("c")
         return ""
 
     cleaned = _TAG_RE.sub(_drop, text)
