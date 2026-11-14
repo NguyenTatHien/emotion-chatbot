@@ -1,4 +1,4 @@
-# Dữ liệu demo: link YouTube thật (đã kiểm tra tồn tại và cho phép nhúng qua oEmbed ngày 2026-11-10).
+# Dữ liệu demo: link YouTube thật (đã kiểm tra tồn tại và cho phép nhúng qua oEmbed ngày 2026-11-10 và 2026-11-14).
 # Nhãn cảm xúc/mục tiêu do nhóm gắn tay để mô phỏng; Người 5 sẽ mở rộng và chuẩn hoá (giữ nguyên các cột).
 title,artist,genre,language,emotion_tags,goal_tags,energy,youtube_url
 Nàng Thơ,Hoàng Dũng,ballad,vi,Sadness|Other,xoa_diu,low,https://www.youtube.com/watch?v=Zzn9-ATB9aU
@@ -34,3 +34,57 @@ River Flows in You,Yiruma,piano,instrumental,Other|Sadness|Fear,tap_trung|xoa_di
 Clair de Lune,Claude Debussy,classical,instrumental,Other|Fear|Sadness,tap_trung|xoa_diu,low,https://www.youtube.com/watch?v=WNcsUNKlAKw
 Weightless,Marconi Union,ambient,instrumental,Fear|Anger|Other,xoa_diu|tap_trung,low,https://www.youtube.com/watch?v=UfcAVejslrU
 Experience,Ludovico Einaudi,piano,instrumental,Other|Surprise|Enjoyment,tap_trung|nang_mood,medium,https://www.youtube.com/watch?v=eUDVUZZyA0M
+Chúng Ta Của Hiện Tại,Sơn Tùng M-TP,pop,vi,Sadness|Other,xoa_diu,low,https://www.youtube.com/watch?v=psZ1g9fMfeo
+Lạc Trôi,Sơn Tùng M-TP,pop,vi,Sadness|Surprise,giai_toa,medium,https://www.youtube.com/watch?v=Llw9Q6akRo4
+Nơi Này Có Anh,Sơn Tùng M-TP,pop,vi,Enjoyment,nang_mood,medium,https://www.youtube.com/watch?v=FN7ALfpGxiI
+Em Của Ngày Hôm Qua,Sơn Tùng M-TP,pop,vi,Enjoyment,nang_mood,high,https://www.youtube.com/watch?v=Vt4kAu-ziRY
+Chạy Ngay Đi,Sơn Tùng M-TP,pop,vi,Anger|Fear,giai_toa,high,https://www.youtube.com/watch?v=32sYGCOYJUM
+Có Chắc Yêu Là Đây,Sơn Tùng M-TP,pop,vi,Enjoyment,nang_mood,medium,https://www.youtube.com/watch?v=6t-MjBazs3o
+Buông Đôi Tay Nhau Ra,Sơn Tùng M-TP,pop,vi,Sadness|Anger,giai_toa,high,https://www.youtube.com/watch?v=LCyo565N_5w
+Tháng Tư Là Lời Nói Dối Của Em,Hà Anh Tuấn,ballad,vi,Sadness,xoa_diu,low,https://www.youtube.com/watch?v=UCXao7aTDQM
+Xuân Thì,Hà Anh Tuấn,ballad,vi,Other|Sadness,xoa_diu,low,https://www.youtube.com/watch?v=yoQXAyxLj0Q
+Tình Đầu,Tăng Duy Tân,pop,vi,Sadness,xoa_diu,medium,https://www.youtube.com/watch?v=IDksv0Z-dTk
+Bên Trên Tầng Lầu,Tăng Duy Tân,pop,vi,Sadness|Anger,giai_toa,medium,https://www.youtube.com/watch?v=LaxkmhiECfM
+Cắt Đôi Nỗi Sầu,Tăng Duy Tân,pop,vi,Sadness|Anger,giai_toa,high,https://www.youtube.com/watch?v=GpmOn4RyzZI
+Em Đồng Ý (I Do),Đức Phúc ft. 911,pop,vi,Enjoyment,nang_mood,medium,https://www.youtube.com/watch?v=IOe0tNoUGv8
+Chuyện Rằng,Thịnh Suy,indie,vi,Sadness|Other,xoa_diu,low,https://www.youtube.com/watch?v=akgNYX8i9Xs
+Lạ Lùng,Vũ.,indie,vi,Sadness|Other,xoa_diu,low,https://www.youtube.com/watch?v=F5tS5m86bOI
+Đông Kiếm Em,Vũ.,indie,vi,Sadness,xoa_diu,low,https://www.youtube.com/watch?v=NLBTbCfR-Fg
+Những Lời Hứa Bỏ Quên,Vũ. ft. Dear Jane,indie,vi,Sadness,xoa_diu,low,https://www.youtube.com/watch?v=h6RONxjPBf4
+Sáng Mắt Chưa,Trúc Nhân,pop,vi,Enjoyment|Anger,giai_toa,high,https://www.youtube.com/watch?v=rDhx4ejrPPA
+Thật Bất Ngờ,Trúc Nhân,pop,vi,Surprise|Enjoyment,nang_mood,high,https://www.youtube.com/watch?v=YUAmi7Q2F0Y
+Bốn Chữ Lắm,Trúc Nhân ft. Trương Thảo Nhi,pop,vi,Enjoyment|Surprise,nang_mood,medium,https://www.youtube.com/watch?v=i724lraI93s
+Một Nhà,Da LAB,pop,vi,Enjoyment|Other,nang_mood,medium,https://www.youtube.com/watch?v=TKlXc3iywoM
+Gác Lại Âu Lo,Da LAB ft. Miu Lê,pop,vi,Fear|Sadness,giai_toa,medium,https://www.youtube.com/watch?v=ECxVfrwwTp0
+Cô Đơn Trên Sofa,Trung Quân,ballad,vi,Sadness,xoa_diu,low,https://www.youtube.com/watch?v=u7ScW1kCgS0
+Anh Nhà Ở Đâu Thế,AMEE ft. B Ray,pop,vi,Enjoyment|Surprise,nang_mood,medium,https://www.youtube.com/watch?v=aMW2Yf7PxM4
+Sao Anh Chưa Về Nhà,AMEE ft. Ricky Star,pop,vi,Sadness,xoa_diu,medium,https://www.youtube.com/watch?v=2FIewNo4K3s
+Bánh Mì Không,Đạt G x DuUyen,ballad,vi,Sadness,xoa_diu,low,https://www.youtube.com/watch?v=Ztrj8UIDMQY
+Thằng Điên,JustaTee x Phương Ly,pop,vi,Sadness|Anger,giai_toa,medium,https://www.youtube.com/watch?v=HXkh7EOqcQ4
+Mình Cùng Nhau Đóng Băng,Thùy Chi,ballad,vi,Sadness|Other,xoa_diu,low,https://www.youtube.com/watch?v=tRjhhCEdd6s
+Ex's Hate Me,B Ray x Masew ft. AMEE,rap,vi,Anger|Sadness,giai_toa,high,https://www.youtube.com/watch?v=95ahbau-rJk
+Ngày Khác Lạ,"Đen ft. Giang Phạm, Triple D",rap,vi,Sadness|Other,xoa_diu,low,https://www.youtube.com/watch?v=U1M5GDNNhCo
+Hai Triệu Năm,Đen ft. Biên,rap,vi,Other|Sadness,tap_trung,low,https://www.youtube.com/watch?v=LSMDNL4n0kM
+Trốn Tìm,Đen ft. MTV band,rap,vi,Other|Sadness,xoa_diu,low,https://www.youtube.com/watch?v=Ws-QlpSltr8
+Đưa Nhau Đi Trốn,Đen ft. Linh Cáo,rap,vi,Enjoyment|Other,giai_toa,low,https://www.youtube.com/watch?v=5e7e_KZINA4
+Mascara,Chillies,indie,vi,Sadness,xoa_diu,medium,https://www.youtube.com/watch?v=ntEoGvhoVac
+Vùng Ký Ức,Chillies,indie,vi,Sadness|Other,xoa_diu,low,https://www.youtube.com/watch?v=T0sHaz4H9MQ
+Thủy Triều,Quang Hùng MasterD,pop,vi,Sadness,giai_toa,medium,https://www.youtube.com/watch?v=7ig2lXjozdw
+Để Mị Nói Cho Mà Nghe,Hoàng Thùy Linh,pop,vi,Enjoyment|Anger,giai_toa,high,https://www.youtube.com/watch?v=JAhdeizXpaQ
+Yêu 5,Rhymastic,rap,vi,Enjoyment,nang_mood,high,https://www.youtube.com/watch?v=fRAr0pj0gGE
+Someone Like You,Adele,ballad,en,Sadness,xoa_diu,low,https://www.youtube.com/watch?v=hLQl3WQQoQ0
+Rolling in the Deep,Adele,pop,en,Anger|Sadness,giai_toa,high,https://www.youtube.com/watch?v=rYEDA3JcQqw
+Fix You,Coldplay,rock,en,Sadness|Fear,xoa_diu,low,https://www.youtube.com/watch?v=k4V3Mo61fJM
+Shake It Off,Taylor Swift,pop,en,Anger|Enjoyment,giai_toa,high,https://www.youtube.com/watch?v=nfWlot6h_JM
+Stronger (What Doesn't Kill You),Kelly Clarkson,pop,en,Anger|Fear,giai_toa,high,https://www.youtube.com/watch?v=Xn676-fLq7I
+Don't Stop Me Now,Queen,rock,en,Enjoyment,nang_mood,high,https://www.youtube.com/watch?v=HgzGwKwLmgM
+Walking on Sunshine,Katrina & The Waves,pop,en,Enjoyment|Surprise,nang_mood,high,https://www.youtube.com/watch?v=iPUmE-tne5U
+Here Comes the Sun,The Beatles,rock,en,Enjoyment|Other,nang_mood,low,https://www.youtube.com/watch?v=KQetemT1sWc
+In the End,Linkin Park,rock,en,Anger|Sadness,giai_toa,high,https://www.youtube.com/watch?v=eVTXPUF4Oz4
+Breathe Me,Sia,pop,en,Sadness|Fear,xoa_diu,low,https://www.youtube.com/watch?v=ghPcYqn0p4Y
+Nuvole Bianche,Ludovico Einaudi,classical,instrumental,Other|Sadness,tap_trung,low,https://www.youtube.com/watch?v=VUCI-1vIbUo
+Time,Hans Zimmer,soundtrack,instrumental,Other|Fear,tap_trung,medium,https://www.youtube.com/watch?v=c56t7upa8Bk
+Kiss the Rain,Yiruma,classical,instrumental,Other|Sadness,tap_trung,low,https://www.youtube.com/watch?v=imGaOIm5HOk
+Comptine d'un autre été,Yann Tiersen,classical,instrumental,Other|Surprise,tap_trung,low,https://www.youtube.com/watch?v=znfYwABeSZ0
+Happier,Marshmello ft. Bastille,pop,en,Sadness|Enjoyment,nang_mood,high,https://www.youtube.com/watch?v=m7Bc3pLyij0
+Counting Stars,OneRepublic,pop,en,Enjoyment|Fear,nang_mood,high,https://www.youtube.com/watch?v=hT_nvWreIhg
