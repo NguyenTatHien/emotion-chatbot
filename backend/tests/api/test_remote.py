@@ -194,5 +194,5 @@ def test_remote_reply_keeps_tag_until_backend_strips_it(client, remote, server):
     server.post("/generate").respond(200, json={"reply": "[NHAC:CO]\nMình ở đây nghe bạn?"})
     body = chat(client, "mình sợ lắm, có bài nào nghe cho đỡ không").json()
     assert body["reply"] == "Mình ở đây nghe bạn?"
-    assert body["meta"]["music_decision"] == "llm"
+    assert body["meta"]["music_decision"] == "request"
     assert body["songs"]

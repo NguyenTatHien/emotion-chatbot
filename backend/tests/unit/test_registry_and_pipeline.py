@@ -151,7 +151,7 @@ async def test_chip_music_failure_still_replies_without_note():
     assert resp.meta.analysis.music_lead is None
 
 
-async def test_music_runs_after_llm_without_chip():
+async def test_music_runs_before_llm_when_user_asks():
     order = []
 
     def llm(*a, **k):
@@ -166,8 +166,9 @@ async def test_music_runs_after_llm_without_chip():
     registry.override("llm", llm)
     registry.override("music", music)
     resp = await handle_chat("s1", message="mình buồn, mở nhạc gì nghe đi")
-    assert order == ["llm", "music"]
-    assert resp.meta.music_decision == "llm"
+    # Route-fix: user xin nhạc → backend chọn bài TRƯỚC (RAG retrieve-then-generate)
+    assert order == ["music", "llm"]
+    assert resp.meta.music_decision == "request"
 
 
 async def test_session_store_limits():

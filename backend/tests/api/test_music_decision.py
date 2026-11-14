@@ -241,7 +241,7 @@ def test_gemini_http_failure_still_canned(client, gemini_fallback):
 def test_mock_suggests_when_user_asks_for_music(client):
     body = post(client, message="có bài nào nghe cho vui không").json()
     assert body["songs"]
-    assert body["meta"]["music_decision"] == "llm"
+    assert body["meta"]["music_decision"] == "request"
     assert "NHAC" not in body["reply"]
 
 
@@ -266,7 +266,7 @@ def test_mock_greeting_has_no_music(client):
 @pytest.mark.parametrize("phrase", ["nghe nhạc", "bài hát", "bài nào", "playlist", "mở nhạc"])
 def test_mock_music_request_phrases(client, phrase):
     body = post(client, message=f"cho mình {phrase} nhé").json()
-    assert body["meta"]["music_decision"] == "llm"
+    assert body["meta"]["music_decision"] == "request"
 
 
 def test_mock_reply_without_chip_does_not_promise_songs(client):
@@ -311,7 +311,7 @@ def test_guard_accepts_co_when_user_asks_for_music(client, music_spy):
     emotion_is("Enjoyment")
     llm_says("[NHAC:CO]\nNghe thử mấy bài này nha.")
     body = post(client, message="có bài nào nghe cho vui không").json()
-    assert body["meta"]["music_decision"] == "llm"
+    assert body["meta"]["music_decision"] == "request"
     assert len(body["songs"]) == 1
 
 
@@ -362,5 +362,5 @@ def test_request_overrides_cooldown(client, music_spy):
     llm_says("[NHAC:CO]\nNghe nhé.")
     post(client, message="vẫn buồn quá")
     body = post(client, message="có bài nào khác nghe không").json()
-    assert body["meta"]["music_decision"] == "llm"
+    assert body["meta"]["music_decision"] == "request"
     assert body["songs"]

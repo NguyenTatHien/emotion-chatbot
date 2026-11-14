@@ -21,7 +21,7 @@ from app import fallbacks, gemini, memory, registry
 from app.config import get_settings
 from app.constants import AROUSAL_LEVELS, LABELS, MODULE_NAMES
 from app.fusion import apply_fusion
-from app.music_guard import GUARD_REASONS, check_music_tag
+from app.music_guard import GUARD_REASONS, asks_for_music, check_music_tag
 from app.music_tag import split_music_tag
 from app.schemas import (
     Analysis,
@@ -42,6 +42,7 @@ logger = logging.getLogger("emotion_chatbot.pipeline")
 
 MUSIC_REASONS: dict[str, str] = {
     "chip": "Bạn đã chọn mục tiêu nghe nhạc",
+    "request": "Bạn xin gợi ý nhạc — chọn từ danh sách thật của hệ thống",
     "llm": "Bot thấy lúc này nghe nhạc có thể giúp bạn",
     "llm_guard": "Bot định gợi ý nhạc nhưng lượt này chưa phù hợp",
     "llm_no": "Chưa cần gợi ý nhạc ở lượt này",
@@ -335,7 +336,20 @@ async def handle_chat(
             )
 
         music_result: tuple[object | None, str | None] | None = None
-        if goal:
+        if asks_for_music(text):
+            # Route-fix (pattern RAG "retrieve-then-generate" — RagON verified): người dùng
+            # YÊU CẦU nhạc bằng từ khoá rõ ràng → backend chọn bài THẬT từ catalog trước
+            # rồi ghi vào ghi chú bối cảnh; LLM chỉ SINH CÂU DẪN dựa trên bài thật.
+            # Giải triệt để mismatch "text liệt bài ngoài catalog" (chat.md lượt 9-12):
+            # model nhỏ luôn ưu tiên làm theo user qua prompt — chỉ có dữ kiện thật chặn được.
+            music_decision = "request"
+            music_result = await run_music()
+            preview = _valid_songs(music_result[0]) if music_result[1] is None else None
+            llm_history = memory.with_music_note(history, preview or [])
+            reply, llm_backend, llm_warnings, _ = await generate_with_fallback(
+                text, llm_emotion, arousal, llm_history, goal
+            )
+        elif goal:
             # Có chip: chọn bài TRƯỚC (chỉ đọc catalog, rất nhanh) rồi ghi các bài vào ghi chú bối
             # cảnh, để câu trả lời của LLM giới thiệu đúng những bài sẽ hiện kèm.
             music_decision = "chip"
