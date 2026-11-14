@@ -161,14 +161,35 @@ async def test_music_runs_before_llm_when_user_asks():
 
     def music(label, arousal, goal, k=5, exclude=None):
         order.append("music")
-        return []
+        return []  # music trả rỗng → fallback luồng LLM; guard chấp nhận (user xin nhạc)
 
     registry.override("llm", llm)
     registry.override("music", music)
     resp = await handle_chat("s1", message="mình buồn, mở nhạc gì nghe đi")
-    # Route-fix: user xin nhạc → backend chọn bài TRƯỚC (RAG retrieve-then-generate)
-    assert order == ["music", "llm"]
+    # Route-fix: user xin nhạc → backend chọn bài TRƯỚC (RAG retrieve-then-generate);
+    # music rỗng → LLM fallback và guard quyết định (music_flag được check, cũ bị bỏ).
+    assert order == ["music", "llm", "music"]
+    assert resp.meta.music_decision == "llm"
+
+
+async def test_route_music_template_when_module_has_songs():
+    order = []
+
+    def llm(*a, **k):
+        order.append("llm")
+        return "KHÔNG ĐƯỢC GỌI"
+
+    def music(label, arousal, goal, k=5, exclude=None):
+        order.append("music")
+        return [{"title": "Nàng Thơ", "artist": "Trịnh Đình Quang", "youtube_url": "https://y/1"}]
+
+    registry.override("llm", llm)
+    registry.override("music", music)
+    resp = await handle_chat("s2", message="đề xuất cho mình vài bài nhạc nha")
+    assert order == ["music"]  # template — LLM KHÔNG được gọi (hallucination by construction)
     assert resp.meta.music_decision == "request"
+    assert resp.meta.llm_backend == "template"
+    assert resp.reply.startswith("Mình chọn sẵn 1 bài")
 
 
 async def test_session_store_limits():
